@@ -3,86 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🏠 하우스 태동 입주 준비 대시보드</title>
+<title>🏠 아파트 입주 준비 대시보드</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
 
-#loading-overlay { position: fixed; inset: 0; background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; gap: 16px; transition: opacity 0.4s; }
-#loading-overlay.hidden { opacity: 0; pointer-events: none; }
-.loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-text { color: rgba(255,255,255,0.7); font-size: 0.88rem; }
+#loading-overlay { position:fixed; inset:0; background:#1a1a2e; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; transition:opacity 0.4s; }
+#loading-overlay.hidden { opacity:0; pointer-events:none; }
+.loading-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.15); border-top-color:#6366f1; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text { color:rgba(255,255,255,0.7); font-size:0.88rem; }
+#save-status { position:fixed; bottom:24px; right:24px; background:#1a1a2e; color:white; padding:8px 16px; border-radius:99px; font-size:0.78rem; font-weight:600; opacity:0; transition:opacity 0.3s; z-index:500; }
+#save-status.show { opacity:1; }
+#save-status.saving { background:#6366f1; }
+#save-status.saved  { background:#22c55e; }
+#save-status.error  { background:#ef4444; }
 
-#save-status { position: fixed; bottom: 24px; right: 24px; background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 99px; font-size: 0.78rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; z-index: 500; }
-#save-status.show { opacity: 1; }
-#save-status.saving { background: #6366f1; }
-#save-status.saved  { background: #22c55e; }
-#save-status.error  { background: #ef4444; }
+header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); color:white; padding:28px 32px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
+.subtitle { font-size:0.85rem; opacity:0.7; margin-top:4px; }
+.dday-badge { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:600; cursor:pointer; white-space:nowrap; }
 
-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 28px 32px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
-.subtitle { font-size: 0.85rem; opacity: 0.7; margin-top: 4px; }
-.dday-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 8px 20px; border-radius: 50px; font-size: 0.9rem; font-weight: 600; backdrop-filter: blur(4px); cursor: pointer; white-space: nowrap; }
+.container { max-width:1280px; margin:0 auto; padding:28px 24px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.section-gap { margin-top:24px; }
 
-.container { max-width: 1280px; margin: 0 auto; padding: 28px 24px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.section-gap { margin-top: 24px; }
+.card { background:white; border-radius:16px; padding:22px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.07); position:relative; overflow:hidden; }
+.card-title { font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:#8b92a5; margin-bottom:10px; }
+.card-value { font-size:1.9rem; font-weight:800; color:#1a1a2e; letter-spacing:-1px; line-height:1; }
+.card-sub { font-size:0.82rem; color:#8b92a5; margin-top:6px; }
+.card-accent { position:absolute; top:0; right:0; width:5px; height:100%; border-radius:0 16px 16px 0; }
+.progress-wrap { margin-top:10px; }
+.progress-label { display:flex; justify-content:space-between; font-size:0.78rem; color:#8b92a5; margin-bottom:5px; }
+.progress-bar-bg { background:#eef0f5; border-radius:99px; height:8px; overflow:hidden; }
+.progress-bar-fill { height:100%; border-radius:99px; transition:width 0.6s cubic-bezier(.4,0,.2,1); }
 
-.card { background: white; border-radius: 16px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); position: relative; overflow: hidden; }
-.card-title { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #8b92a5; margin-bottom: 10px; }
-.card-value { font-size: 1.9rem; font-weight: 800; color: #1a1a2e; letter-spacing: -1px; line-height: 1; }
-.card-sub { font-size: 0.82rem; color: #8b92a5; margin-top: 6px; }
-.card-accent { position: absolute; top: 0; right: 0; width: 5px; height: 100%; border-radius: 0 16px 16px 0; }
-
-.progress-wrap { margin-top: 10px; }
-.progress-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: #8b92a5; margin-bottom: 5px; }
-.progress-bar-bg { background: #eef0f5; border-radius: 99px; height: 8px; overflow: hidden; }
-.progress-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
-
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.section-title { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
-.section-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.section-title { font-size:1.05rem; font-weight:700; color:#1a1a2e; display:flex; align-items:center; gap:8px; }
+.section-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.95rem; }
 
 /* Cost table */
-.cost-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-.cost-table th { background: #f7f8fc; padding: 9px 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #8b92a5; text-transform: uppercase; letter-spacing: 0.5px; }
-.cost-table th:last-child { text-align: right; }
-.cost-table td { padding: 9px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
-.cost-table td:last-child { text-align: right; font-weight: 600; }
-.cost-table tr:last-child td { border-bottom: none; }
-.cost-table tr.clickable:hover td { background: #fafbff; cursor: pointer; }
-.cost-cat-header td { background: #f7f8fc; font-size: 0.75rem; font-weight: 700; padding: 7px 12px; border-bottom: none; }
-.cost-total-row td { background: #f0f2f5; font-weight: 700; border-top: 2px solid #e5e7ef; }
+.cost-table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+.cost-table th { background:#f7f8fc; padding:9px 12px; text-align:left; font-size:0.75rem; font-weight:600; color:#8b92a5; text-transform:uppercase; letter-spacing:0.5px; }
+.cost-table td { padding:9px 12px; border-bottom:1px solid #f0f2f5; vertical-align:middle; }
+.cost-table tr:last-child td { border-bottom:none; }
+.cost-table tr.clickable { cursor:pointer; }
+.cost-table tr.clickable:hover td { background:#fafbff; }
+.cost-cat-header td { background:#f7f8fc; font-size:0.75rem; font-weight:700; padding:7px 12px; border-bottom:none; }
+.cost-parent-row td { background:#fcfcfd; }
+.cost-inst-row td { padding:7px 12px 7px 28px; font-size:0.83rem; }
+.cost-total-row td { background:#f0f2f5; font-weight:700; border-top:2px solid #e5e7ef; }
 
 /* Badges */
 .badge-paid    { display:inline-block; background:#e8faf0; color:#22c55e; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
 .badge-due     { display:inline-block; background:#fff3e8; color:#f97316; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
 .badge-pending { display:inline-block; background:#f0f2f5; color:#8b92a5; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
+.badge-partial { display:inline-block; background:#e0f2fe; color:#0ea5e9; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
 
 /* Timeline */
-.timeline { position: relative; padding-left: 22px; }
+.timeline { position:relative; padding-left:22px; }
 .timeline::before { content:''; position:absolute; left:7px; top:8px; bottom:8px; width:2px; background:linear-gradient(to bottom,#6366f1,#e5e7ef); }
-.tl-group { margin-bottom: 20px; }
-.tl-group:last-child { margin-bottom: 0; }
+.tl-group { margin-bottom:20px; }
+.tl-group:last-child { margin-bottom:0; }
 .tl-dot { position:absolute; left:-22px; top:4px; width:14px; height:14px; border-radius:50%; border:2px solid white; }
 .tl-dot.done     { background:#22c55e; box-shadow:0 0 0 2px #22c55e; }
 .tl-dot.upcoming { background:#f97316; box-shadow:0 0 0 2px #f97316; }
 .tl-dot.future   { background:#e5e7ef; box-shadow:0 0 0 2px #cbd5e1; }
 .tl-date-block { position:relative; margin-bottom:8px; }
 .tl-date-label { font-size:0.8rem; font-weight:700; color:#1a1a2e; }
-.tl-date-sub { font-size:0.73rem; color:#8b92a5; }
+.tl-date-sub   { font-size:0.73rem; color:#8b92a5; }
 .tl-items { border-left:2px solid #e5e7ef; margin-left:3px; padding-left:12px; }
 .tl-item { padding:6px 0; cursor:pointer; border-radius:6px; }
 .tl-item:hover { background:#fafbff; }
 .tl-item-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
-.tl-item-name { font-size:0.88rem; font-weight:600; color:#1a1a2e; }
-.tl-item-amt  { font-size:0.82rem; color:#6366f1; font-weight:700; }
+.tl-item-name  { font-size:0.88rem; font-weight:600; color:#1a1a2e; }
+.tl-item-parent { font-size:0.72rem; color:#8b92a5; }
+.tl-item-amt   { font-size:0.82rem; color:#6366f1; font-weight:700; white-space:nowrap; }
 
-/* Todos */
+/* Todo */
 .todo-item { display:flex; align-items:flex-start; gap:12px; padding:11px 8px; border-bottom:1px solid #f0f2f5; border-radius:8px; transition:background 0.15s; }
 .todo-item:last-child { border-bottom:none; }
 .todo-item:hover { background:#fafbff; }
@@ -104,18 +105,28 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 .tab:hover:not(.active) { border-color:#6366f1; color:#6366f1; }
 
 /* Item cards */
-.item-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; }
+.item-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
 .item-card { border:1.5px solid #e5e7ef; border-radius:12px; padding:14px 16px 12px; transition:all 0.15s; cursor:pointer; position:relative; }
 .item-card:hover { border-color:#6366f1; box-shadow:0 2px 12px rgba(99,102,241,0.1); }
 .item-card.st-paid    { background:#f0fdf4; border-color:#86efac; }
+.item-card.st-partial { background:#f0f9ff; border-color:#7dd3fc; }
 .item-card.st-due     { background:#fff7ed; border-color:#fdba74; }
-.item-card.st-pending { background:white; }
 .item-cat  { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
-.item-name { font-size:0.88rem; font-weight:600; color:#1a1a2e; margin-bottom:4px; line-height:1.3; padding-right:56px; }
+.item-name { font-size:0.88rem; font-weight:600; color:#1a1a2e; margin-bottom:4px; line-height:1.3; padding-right:60px; }
 .item-amt  { font-size:0.85rem; color:#6366f1; font-weight:700; }
 .item-date { font-size:0.72rem; color:#8b92a5; margin-top:3px; }
-.item-memo { font-size:0.72rem; color:#8b92a5; margin-top:3px; }
+.item-memo { font-size:0.72rem; color:#8b92a5; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .item-badge { position:absolute; top:10px; right:10px; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:99px; cursor:pointer; }
+.item-prog-wrap { margin-top:8px; }
+.item-prog-bar-bg { background:#e5e7ef; border-radius:99px; height:5px; overflow:hidden; margin-bottom:4px; }
+.item-prog-bar-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#22c55e,#86efac); }
+.item-prog-label { font-size:0.72rem; color:#8b92a5; }
+.item-next { font-size:0.73rem; color:#f97316; margin-top:5px; font-weight:600; }
+.item-inst-dots { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.inst-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.inst-dot.paid    { background:#22c55e; }
+.inst-dot.due     { background:#f97316; }
+.inst-dot.pending { background:#cbd5e1; }
 
 /* Total bar */
 .total-bar { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; padding:14px 20px; border-radius:12px; margin-top:16px; }
@@ -125,7 +136,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 /* Modals */
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; }
 .modal-overlay.show { display:flex; }
-.modal { background:white; border-radius:20px; padding:28px 32px; width:90%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto; }
+.modal { background:white; border-radius:20px; padding:28px 32px; width:90%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto; }
 .modal-title { font-size:1.05rem; font-weight:700; margin-bottom:20px; }
 .form-group { margin-bottom:14px; }
 .form-label { font-size:0.78rem; font-weight:600; color:#8b92a5; margin-bottom:5px; display:block; }
@@ -142,8 +153,20 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 .btn-add { display:flex; align-items:center; gap:6px; font-size:0.8rem; font-weight:600; color:#6366f1; background:#eef2ff; border:none; border-radius:99px; padding:5px 14px; cursor:pointer; transition:all 0.15s; font-family:inherit; }
 .btn-add:hover { background:#e0e7ff; }
 
-@media (max-width: 900px) { .grid-3 { grid-template-columns:1fr 1fr; } }
-@media (max-width: 640px) { .grid-3, .grid-2 { grid-template-columns:1fr; } header { padding:20px 18px; } .container { padding:18px 14px; } }
+/* Installment rows in modal */
+.inst-row { background:#f7f8fc; border:1.5px solid #e5e7ef; border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.inst-row-top { display:flex; gap:6px; margin-bottom:7px; align-items:center; }
+.inst-row-top input { flex:1; }
+.inst-row-bottom { display:grid; grid-template-columns:60px 1fr 130px 80px; gap:6px; }
+.inst-row-label { font-size:0.7rem; font-weight:600; color:#8b92a5; margin-bottom:2px; display:block; }
+.inst-del-btn { background:#fee2e2; border:none; border-radius:6px; color:#ef4444; cursor:pointer; font-size:1rem; width:30px; height:30px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.inst-del-btn:hover { background:#fecaca; }
+.inst-small { font-size:0.82rem; }
+.inst-section { border-top:1.5px solid #e5e7ef; margin-top:14px; padding-top:14px; }
+
+@media(max-width:900px) { .grid-3 { grid-template-columns:1fr 1fr; } }
+@media(max-width:640px) { .grid-3,.grid-2 { grid-template-columns:1fr; } header { padding:20px 18px; } .container { padding:18px 14px; } .inst-row-bottom { grid-template-columns:55px 1fr 110px 75px; } }
+@media(max-width:400px) { .inst-row-bottom { grid-template-columns:1fr 1fr; } }
 </style>
 </head>
 <body>
@@ -174,7 +197,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
     </div>
     <div class="card">
       <div class="card-accent" style="background:#22c55e"></div>
-      <div class="card-title">납부/구매 완료</div>
+      <div class="card-title">납부 / 구매 완료</div>
       <div class="card-value" id="kpi-paid">-</div>
       <div class="progress-wrap">
         <div class="progress-label"><span>완료율</span><span id="kpi-paid-pct">-</span></div>
@@ -183,7 +206,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
     </div>
     <div class="card">
       <div class="card-accent" style="background:#f97316"></div>
-      <div class="card-title">잔여 납부/구매액</div>
+      <div class="card-title">잔여 납부 / 구매액</div>
       <div class="card-value" id="kpi-remain">-</div>
       <div class="card-sub">미완료 항목 합계</div>
     </div>
@@ -192,13 +215,13 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
       <div class="card-title">할 일 진행률</div>
       <div class="card-value" id="kpi-todo">-</div>
       <div class="progress-wrap">
-        <div class="progress-label"><span>완료된 항목</span><span id="kpi-todo-detail">-</span></div>
+        <div class="progress-label"><span>완료 항목</span><span id="kpi-todo-detail">-</span></div>
         <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-todo" style="background:#a855f7;width:0%"></div></div>
       </div>
     </div>
     <div class="card">
       <div class="card-accent" style="background:#f97316"></div>
-      <div class="card-title">납부/결제 예정</div>
+      <div class="card-title">납부 / 결제 예정</div>
       <div class="card-value" id="kpi-due-count">-</div>
       <div class="card-sub" id="kpi-due-amt">예정 합계: -</div>
     </div>
@@ -219,7 +242,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
       </div>
       <table class="cost-table">
         <thead><tr>
-          <th>항목</th><th>메모</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th>
+          <th>항목</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th>
         </tr></thead>
         <tbody id="cost-tbody"></tbody>
       </table>
@@ -232,12 +255,11 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
     <div class="card">
       <div class="section-header">
         <div class="section-title"><div class="section-icon" style="background:#fff3e8">📅</div>납부 일정</div>
-        <span style="font-size:0.73rem;color:#8b92a5">납부일 입력 항목 자동 표시</span>
+        <span style="font-size:0.73rem;color:#8b92a5">납부일 항목 자동 표시</span>
       </div>
       <div class="timeline" id="payment-timeline"></div>
       <div id="timeline-empty" style="display:none;color:#8b92a5;font-size:0.84rem;text-align:center;padding:24px 0;line-height:1.6">
-        납부일이 설정된 항목이 없습니다<br>
-        <small>아래 리스트에서 항목 편집 → 납부/결제 예정일 입력</small>
+        납부일이 설정된 항목이 없습니다<br><small>리스트 편집 → 납부/결제 예정일 또는 분할 납부일 입력</small>
       </div>
     </div>
   </div>
@@ -268,7 +290,8 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
       <button class="btn-add" onclick="openItemModal(null)">+ 항목 추가</button>
     </div>
     <div style="font-size:0.78rem;color:#8b92a5;margin-bottom:14px;padding:10px 14px;background:#f7f8fc;border-radius:10px">
-      💡 <strong>메인 리스트</strong> — 가전·가구·인테리어·분양가·옵션·세금 등 모든 항목을 여기에 입력하면 <strong>비용 상세내역</strong>과 <strong>납부일정</strong>이 자동으로 업데이트됩니다. 카드의 상태 배지를 클릭하면 바로 변경할 수 있습니다.
+      💡 <strong>메인 리스트</strong> — 모든 항목을 여기에 입력하면 비용 상세내역·납부일정이 자동 업데이트됩니다.
+      카드 배지 클릭 → 상태 변경. <strong>분할 납부</strong> 기능으로 중도금 등 여러 회차를 하나의 항목으로 관리할 수 있습니다.
     </div>
     <div class="tabs" id="item-tabs"></div>
     <div class="item-grid" id="item-grid"></div>
@@ -280,13 +303,18 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 
 </div>
 
-<!-- Item Modal -->
+<!-- ── Item Modal ── -->
 <div class="modal-overlay" id="item-modal">
   <div class="modal">
     <div class="modal-title">📋 항목 추가 / 편집</div>
     <input type="hidden" id="item-idx">
-    <div class="form-group"><label class="form-label">항목명</label><input class="form-input" id="item-name" placeholder="예: 분양가 계약금, 냉장고, 취득세"></div>
-    <div class="form-group"><label class="form-label">카테고리</label>
+
+    <div class="form-group">
+      <label class="form-label">항목명</label>
+      <input class="form-input" id="item-name" placeholder="예: 분양가, 냉장고, 취득세">
+    </div>
+    <div class="form-group">
+      <label class="form-label">카테고리</label>
       <select class="form-input" id="item-category">
         <option value="분양가">분양가</option>
         <option value="옵션">옵션</option>
@@ -297,16 +325,54 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
         <option value="기타">기타</option>
       </select>
     </div>
-    <div class="form-group"><label class="form-label">금액 (만원)</label><input class="form-input" id="item-amount" type="number" placeholder="예: 5000"></div>
-    <div class="form-group"><label class="form-label">납부/결제 예정일 <span style="font-weight:400;color:#b0b7c3">(선택 — 납부일정에 자동 표시)</span></label><input class="form-input" id="item-duedate" type="date"></div>
-    <div class="form-group"><label class="form-label">상태</label>
-      <select class="form-input" id="item-status">
-        <option value="pending">미결제 / 미납</option>
-        <option value="due">납부 / 결제 예정</option>
-        <option value="paid">완료 (납부·구매)</option>
-      </select>
+    <div class="form-group">
+      <label class="form-label">전체 금액 (만원) <span id="inst-ref-label" style="font-size:0.75rem;font-weight:400;color:#8b92a5"></span></label>
+      <input class="form-input" id="item-amount" type="number" placeholder="예: 55650" oninput="onTotalAmtChange()">
     </div>
-    <div class="form-group"><label class="form-label">메모</label><input class="form-input" id="item-memo" placeholder="메모"></div>
+
+    <!-- Simple (no installments) -->
+    <div id="simple-fields">
+      <div class="form-group">
+        <label class="form-label">납부/결제 예정일 <span style="font-weight:400;color:#b0b7c3">(선택 — 납부일정 자동 표시)</span></label>
+        <input class="form-input" id="item-duedate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">상태</label>
+        <select class="form-input" id="item-status">
+          <option value="pending">미결제 / 미납</option>
+          <option value="due">납부 / 결제 예정</option>
+          <option value="paid">완료 (납부·구매)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="item-memo" placeholder="메모">
+    </div>
+
+    <!-- Installment section -->
+    <div class="inst-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:0.88rem;font-weight:700;color:#1a1a2e">분할 납부 일정</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#6366f1;cursor:pointer;font-weight:600;user-select:none">
+          <input type="checkbox" id="use-inst" onchange="toggleInstSection()">
+          분할 납부 사용
+        </label>
+      </div>
+      <div id="inst-area" style="display:none">
+        <div style="font-size:0.75rem;color:#8b92a5;margin-bottom:10px;line-height:1.55;padding:8px 10px;background:#f0f2f5;border-radius:8px">
+          💡 <strong>비율(%)</strong>을 입력하면 전체 금액 기준으로 금액이 자동 계산됩니다. 금액을 직접 수정하면 비율이 역산됩니다.<br>
+          납부일을 입력한 항목은 납부일정 타임라인에 <strong>항목명 → 제목</strong> 형식으로 표시됩니다.
+        </div>
+        <div id="inst-rows"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <button type="button" class="btn-add" onclick="addInstRow()">+ 분할 추가</button>
+          <span id="inst-total-label" style="font-size:0.82rem;color:#6366f1;font-weight:700"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('item-modal')">취소</button>
       <button class="btn btn-danger" id="item-delete-btn" onclick="deleteItem()" style="display:none">삭제</button>
@@ -315,7 +381,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
   </div>
 </div>
 
-<!-- Todo Modal -->
+<!-- ── Todo Modal ── -->
 <div class="modal-overlay" id="todo-modal">
   <div class="modal">
     <div class="modal-title">✅ 할 일 항목</div>
@@ -338,7 +404,7 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
   </div>
 </div>
 
-<!-- Date Modal -->
+<!-- ── Date Modal ── -->
 <div class="modal-overlay" id="date-modal">
   <div class="modal">
     <div class="modal-title">🏠 입주 예정일 설정</div>
@@ -351,7 +417,9 @@ header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 </div>
 
 <script>
-// ── Firebase
+// ════════════════════════════════════════
+//  FIREBASE
+// ════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyDusMr60yDPeHfIV99kpJVK1aC7BrwKIDE",
   authDomain: "house-taedong.firebaseapp.com",
@@ -367,55 +435,104 @@ const DOC_REF = db.collection('dashboard').doc('main');
 let data = null;
 let saveTimer = null;
 
-// ── Category styling
-const CAT_COLOR = { '분양가':'#6366f1','옵션':'#8b5cf6','세금':'#ef4444','가전':'#0ea5e9','가구':'#f97316','인테리어':'#22c55e','기타':'#8b92a5' };
-const CAT_BG    = { '분양가':'#eef2ff','옵션':'#f3e8ff','세금':'#fee2e2','가전':'#e0f2fe','가구':'#fff3e8','인테리어':'#f0fdf4','기타':'#f0f2f5' };
-const CAT_ORDER = ['분양가','옵션','세금','가전','가구','인테리어','기타'];
+// ════════════════════════════════════════
+//  CATEGORY STYLING
+// ════════════════════════════════════════
+const CAT_COLOR = { '분양가':'#6366f1','옵션':'#8b5cf6','세금':'#ef4444','가전':'#0ea5e9','가구':'#f97316','인테리어':'#22c55e','기타':'#8b92a5','침구':'#ec4899' };
+const CAT_BG    = { '분양가':'#eef2ff','옵션':'#f3e8ff','세금':'#fee2e2','가전':'#e0f2fe','가구':'#fff3e8','인테리어':'#f0fdf4','기타':'#f0f2f5','침구':'#fdf2f8' };
+const CAT_ORDER = ['분양가','옵션','세금','가전','가구','침구','인테리어','기타'];
 
-// ── Defaults
+// ════════════════════════════════════════
+//  ITEM HELPERS (installment-aware)
+// ════════════════════════════════════════
+
+/** Total cost of an item (uses installment sum if installments present) */
+function effectiveAmt(item) {
+  if (item.installments && item.installments.length > 0)
+    return item.installments.reduce((s, inst) => s + (Number(inst.amount) || 0), 0);
+  return Number(item.amount) || 0;
+}
+
+/** Amount already paid */
+function paidAmt(item) {
+  if (item.installments && item.installments.length > 0)
+    return item.installments.filter(i => i.status === 'paid').reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  return item.status === 'paid' ? (Number(item.amount) || 0) : 0;
+}
+
+/** Amount marked as "due" (예정) */
+function dueAmt(item) {
+  if (item.installments && item.installments.length > 0)
+    return item.installments.filter(i => i.status === 'due').reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  return item.status === 'due' ? (Number(item.amount) || 0) : 0;
+}
+
+/** Derived status: paid / partial / due / pending */
+function derivedStatus(item) {
+  if (!item.installments || !item.installments.length) return item.status || 'pending';
+  const total = item.installments.length;
+  const paid  = item.installments.filter(i => i.status === 'paid').length;
+  if (paid === total) return 'paid';
+  if (paid > 0)       return 'partial';
+  if (item.installments.some(i => i.status === 'due')) return 'due';
+  return 'pending';
+}
+
+function statusBadge(st) {
+  if (st === 'paid')    return '<span class="badge-paid">✅ 완료</span>';
+  if (st === 'partial') return '<span class="badge-partial">⬤ 부분완료</span>';
+  if (st === 'due')     return '<span class="badge-due">🕐 예정</span>';
+  return '<span class="badge-pending">○ 미결제</span>';
+}
+
+// ════════════════════════════════════════
+//  DEFAULT DATA
+// ════════════════════════════════════════
 function defaultItems() {
   return [
-    {name:'분양가 계약금 (10%)',          category:'분양가',    amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'분양가 중도금 1차 (10%)',       category:'분양가',    amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'분양가 중도금 2차 (10%)',       category:'분양가',    amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'분양가 잔금 (60%)',             category:'분양가',    amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'발코니 확장',                   category:'옵션',      amount:483, status:'pending', dueDate:'', memo:'VAT 포함'},
-    {name:'시스템에어컨 (LG 프리미엄)',    category:'옵션',      amount:690, status:'pending', dueDate:'', memo:'VAT 포함, 전실 4대'},
-    {name:'추가선택품목 III',              category:'옵션',      amount:245, status:'pending', dueDate:'', memo:'주방벽+거실마감+탄성코트'},
-    {name:'중도금 이자',                   category:'기타',      amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'취득세',                        category:'세금',      amount:0,   status:'pending', dueDate:'', memo:''},
-    {name:'냉장고',                        category:'가전',      amount:200, status:'pending', dueDate:'', memo:''},
-    {name:'세탁기/건조기',                 category:'가전',      amount:200, status:'pending', dueDate:'', memo:''},
-    {name:'TV',                            category:'가전',      amount:150, status:'pending', dueDate:'', memo:''},
-    {name:'공기청정기',                    category:'가전',      amount:50,  status:'pending', dueDate:'', memo:''},
-    {name:'로봇청소기',                    category:'가전',      amount:80,  status:'pending', dueDate:'', memo:''},
-    {name:'침대/매트리스',                 category:'가구',      amount:250, status:'pending', dueDate:'', memo:''},
-    {name:'소파',                          category:'가구',      amount:120, status:'pending', dueDate:'', memo:''},
-    {name:'식탁/의자',                     category:'가구',      amount:80,  status:'pending', dueDate:'', memo:''},
-    {name:'커튼/블라인드',                 category:'인테리어',  amount:50,  status:'pending', dueDate:'', memo:''},
-    {name:'조명 교체',                     category:'인테리어',  amount:30,  status:'pending', dueDate:'', memo:''},
+    { name:'분양가', category:'분양가', amount:0, status:'pending', dueDate:'', memo:'',
+      installments:[
+        {title:'계약금',      pct:10, amount:0, date:'', status:'pending'},
+        {title:'중도금 1차',  pct:10, amount:0, date:'', status:'pending'},
+        {title:'잔금',        pct:60, amount:0, date:'', status:'pending'},
+      ]
+    },
+    {name:'발코니 확장',              category:'옵션',     amount:483,  status:'pending', dueDate:'', memo:'VAT 포함'},
+    {name:'시스템에어컨 (LG 프리미엄)',category:'옵션',     amount:690,  status:'pending', dueDate:'', memo:'VAT 포함, 전실 4대'},
+    {name:'추가선택품목 III',          category:'옵션',     amount:245,  status:'pending', dueDate:'', memo:'주방벽+거실마감+탄성코트'},
+    {name:'취득세',                    category:'세금',     amount:0,    status:'pending', dueDate:'', memo:''},
+    {name:'냉장고',                    category:'가전',     amount:200,  status:'pending', dueDate:'', memo:''},
+    {name:'세탁기/건조기',             category:'가전',     amount:200,  status:'pending', dueDate:'', memo:''},
+    {name:'TV',                        category:'가전',     amount:150,  status:'pending', dueDate:'', memo:''},
+    {name:'공기청정기',                category:'가전',     amount:50,   status:'pending', dueDate:'', memo:''},
+    {name:'로봇청소기',                category:'가전',     amount:80,   status:'pending', dueDate:'', memo:''},
+    {name:'침대/매트리스',             category:'가구',     amount:250,  status:'pending', dueDate:'', memo:''},
+    {name:'소파',                      category:'가구',     amount:120,  status:'pending', dueDate:'', memo:''},
+    {name:'식탁/의자',                 category:'가구',     amount:80,   status:'pending', dueDate:'', memo:''},
+    {name:'커튼/블라인드',             category:'인테리어', amount:50,   status:'pending', dueDate:'', memo:''},
+    {name:'조명 교체',                 category:'인테리어', amount:30,   status:'pending', dueDate:'', memo:''},
   ];
 }
-
 function defaultTodos() {
   return [
-    {name:'붙박이장 시공 견적',        note:'최소 3개 업체 비교',       category:'시공',  priority:'high', done:false},
-    {name:'새집증후군 베이크아웃',     note:'입주 전 2~3일 고온 환기',  category:'환경',  priority:'high', done:false},
-    {name:'줄눈 시공',                 note:'타일 사이 오염 방지',      category:'시공',  priority:'high', done:false},
-    {name:'냉장고장 제작/시공',        note:'냉장고 사이즈 확인 후',    category:'시공',  priority:'high', done:false},
-    {name:'유리난간 설치 확인',        note:'시공 상태 및 안전 점검',   category:'시공',  priority:'mid',  done:false},
-    {name:'인터넷 이전 신청',          note:'KT/SKT/LG 비교',          category:'생활',  priority:'mid',  done:false},
-    {name:'가스 개통 신청',            note:'입주일 전 신청 필수',      category:'생활',  priority:'high', done:false},
-    {name:'이사 업체 선정',            note:'사다리차 포함 여부 확인',  category:'이사',  priority:'high', done:false},
-    {name:'각종 주소 변경',            note:'은행, 보험, 병원 등',      category:'행정',  priority:'mid',  done:false},
-    {name:'하자 점검 신청',            note:'입주 전 하자보수 점검',    category:'시공',  priority:'high', done:false},
+    {name:'붙박이장 시공 견적',      note:'최소 3개 업체 비교',       category:'시공',  priority:'high', done:false},
+    {name:'새집증후군 베이크아웃',   note:'입주 전 2~3일 고온 환기',  category:'환경',  priority:'high', done:false},
+    {name:'줄눈 시공',               note:'타일 사이 오염 방지',      category:'시공',  priority:'high', done:false},
+    {name:'냉장고장 제작/시공',      note:'냉장고 사이즈 확인 후',    category:'시공',  priority:'high', done:false},
+    {name:'유리난간 설치 확인',      note:'시공 상태 및 안전 점검',   category:'시공',  priority:'mid',  done:false},
+    {name:'인터넷 이전 신청',        note:'KT/SKT/LG 비교',          category:'생활',  priority:'mid',  done:false},
+    {name:'가스 개통 신청',          note:'입주일 전 신청 필수',      category:'생활',  priority:'high', done:false},
+    {name:'이사 업체 선정',          note:'사다리차 포함 여부 확인',  category:'이사',  priority:'high', done:false},
+    {name:'각종 주소 변경',          note:'은행, 보험, 병원 등',      category:'행정',  priority:'mid',  done:false},
+    {name:'하자 점검 신청',          note:'입주 전 하자보수 점검',    category:'시공',  priority:'high', done:false},
   ];
 }
 
-// ── Migrate from old Firestore format (costs + shops + payments → items)
+// ════════════════════════════════════════
+//  MIGRATION: old format → new format
+// ════════════════════════════════════════
 function migrateFromOld(old) {
   const items = [];
-
   function guessCat(name, memo) {
     const t = (name + ' ' + (memo||'')).toLowerCase();
     if (/분양|계약금|중도금|잔금/.test(t)) return '분양가';
@@ -424,20 +541,12 @@ function migrateFromOld(old) {
     if (/이자/.test(t)) return '기타';
     return null;
   }
-
-  // costs → items
   (old.costs || []).forEach(c => {
-    const cat = guessCat(c.name, c.memo) || '기타';
-    items.push({ name: c.name, category: cat, amount: Number(c.amount||0), status: c.status||'pending', dueDate: '', memo: c.memo||'' });
+    items.push({name:c.name, category:guessCat(c.name,c.memo)||'기타', amount:Number(c.amount||0), status:c.status||'pending', dueDate:'', memo:c.memo||''});
   });
-
-  // shops → items
   (old.shops || []).forEach(s => {
-    const cat = s.category || '기타';
-    items.push({ name: s.name, category: cat, amount: Number(s.price||0), status: s.bought ? 'paid' : 'pending', dueDate: '', memo: s.memo||'' });
+    items.push({name:s.name, category:s.category||'기타', amount:Number(s.price||0), status:s.bought?'paid':'pending', dueDate:'', memo:s.memo||''});
   });
-
-  // payments → enrich existing items with dueDate, or add as new items
   (old.payments || []).forEach(p => {
     const pName = (p.desc||'').replace(/\s/g,'');
     const match = items.find(i => {
@@ -445,84 +554,121 @@ function migrateFromOld(old) {
       return n.includes(pName.slice(0,4)) || pName.includes(n.slice(0,4));
     });
     if (match && !match.dueDate) {
-      match.dueDate = p.date || '';
-      if (p.status === 'done')     match.status = 'paid';
-      else if (p.status === 'upcoming' && match.status === 'pending') match.status = 'due';
+      match.dueDate = p.date||'';
+      if (p.status==='done' && match.status!=='paid') match.status='paid';
+      else if (p.status==='upcoming' && match.status==='pending') match.status='due';
     } else if (!match && p.desc) {
-      items.push({
-        name: p.desc, category: '분양가', amount: Number(p.amount||0),
-        status: p.status==='done' ? 'paid' : p.status==='upcoming' ? 'due' : 'pending',
-        dueDate: p.date||'', memo: ''
-      });
+      items.push({name:p.desc, category:'분양가', amount:Number(p.amount||0),
+        status:p.status==='done'?'paid':p.status==='upcoming'?'due':'pending',
+        dueDate:p.date||'', memo:''});
     }
   });
-
   return items;
 }
 
-// ── Firestore
+/**
+ * MIGRATION: merge standalone 계약금/중도금/잔금 items in category '분양가'
+ * into installments of the parent '분양가' item.
+ * This fixes the double-counting bug.
+ */
+function consolidateInstallments(items) {
+  const childPattern = /계약금|중도금|잔금/;
+  const parentIdx = items.findIndex(i => i.category==='분양가' && i.name==='분양가' && !(i.installments && i.installments.length));
+  if (parentIdx === -1) return false;
+
+  const parent = items[parentIdx];
+  const childIndices = [];
+  const insts = [];
+
+  items.forEach((item, idx) => {
+    if (idx === parentIdx) return;
+    if (item.category === '분양가' && childPattern.test(item.name)) {
+      const pctMatch = item.name.match(/(\d+(?:\.\d+)?)%/);
+      const pct = pctMatch ? Number(pctMatch[1]) : 0;
+      const title = item.name.replace(/\s*\(\d+(?:\.\d+)?%\)\s*/g,'').trim();
+      insts.push({ title, pct, amount:Number(item.amount||0), date:item.dueDate||'', status:item.status||'pending' });
+      childIndices.push(idx);
+    }
+  });
+
+  if (!insts.length) return false;
+
+  insts.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  parent.installments = insts;
+
+  // Remove children in reverse order
+  for (let i = childIndices.length - 1; i >= 0; i--) items.splice(childIndices[i], 1);
+  return true;
+}
+
+// ════════════════════════════════════════
+//  FIRESTORE
+// ════════════════════════════════════════
 async function fetchData() {
   try {
     const doc = await DOC_REF.get();
     if (doc.exists) {
       data = doc.data();
-      // Migrate if old format
-      if (!data.items) {
-        data.items = migrateFromOld(data);
-        delete data.costs; delete data.shops; delete data.payments;
-        await DOC_REF.set(data);
-      }
+      let needsSave = false;
+      // Migrate from old format (costs/shops/payments)
+      if (!data.items) { data.items = migrateFromOld(data); needsSave = true; }
+      // Consolidate duplicate 분양가 items → installments
+      if (consolidateInstallments(data.items)) needsSave = true;
+      if (!data.todos) { data.todos = defaultTodos(); needsSave = true; }
+      if (!data.moveDate) { data.moveDate = '2026-08-15'; needsSave = true; }
+      if (needsSave) await DOC_REF.set(data);
     } else {
-      data = { moveDate: '2026-08-15', items: defaultItems(), todos: defaultTodos() };
+      data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos() };
       await DOC_REF.set(data);
     }
-    if (!data.items)  data.items = defaultItems();
-    if (!data.todos)  data.todos = defaultTodos();
-    if (!data.moveDate) data.moveDate = '2026-08-15';
   } catch(e) {
     console.error('Firestore 오류:', e);
-    data = { moveDate: '2026-08-15', items: defaultItems(), todos: defaultTodos() };
+    data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos() };
   }
 }
 
 function saveData() {
   clearTimeout(saveTimer);
-  showSave('saving', '저장 중...');
+  showSave('saving','저장 중...');
   saveTimer = setTimeout(async () => {
     try {
       await DOC_REF.set(data);
-      showSave('saved', '저장됨 ✓');
+      showSave('saved','저장됨 ✓');
       setTimeout(hideSave, 2000);
     } catch(e) {
-      showSave('error', '저장 실패 ✕');
+      showSave('error','저장 실패 ✕');
       setTimeout(hideSave, 3000);
     }
   }, 800);
 }
-
 function showSave(type, msg) { const el=document.getElementById('save-status'); el.className=`show ${type}`; el.textContent=msg; }
-function hideSave()          { document.getElementById('save-status').className=''; }
+function hideSave() { document.getElementById('save-status').className=''; }
 
-// ── Format helpers
+// ════════════════════════════════════════
+//  FORMAT HELPERS
+// ════════════════════════════════════════
 function fmt(n) {
-  n = Number(n)||0;
-  if (n===0) return '0만원';
-  if (n>=10000) return (n/10000).toFixed(1).replace(/\.0$/,'')+'억';
-  return n.toLocaleString()+'만원';
+  n = Number(n) || 0;
+  if (n === 0) return '0만원';
+  if (n >= 10000) return (n/10000).toFixed(2).replace(/\.?0+$/,'') + '억';
+  return n.toLocaleString() + '만원';
 }
 function fmtDate(d) {
   if (!d) return '';
-  const parts = d.split('-');
-  return `${parts[0]}.${parts[1]}.${parts[2]}`;
+  const p = d.split('-');
+  return `${p[0]}.${p[1]}.${p[2]}`;
 }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── D-Day
+// ════════════════════════════════════════
+//  D-DAY
+// ════════════════════════════════════════
 function updateDday() {
   const badge = document.getElementById('dday-badge');
   if (!data.moveDate) { badge.textContent='입주일 미설정'; return; }
   const today = new Date(); today.setHours(0,0,0,0);
   const move  = new Date(data.moveDate); move.setHours(0,0,0,0);
-  const diff  = Math.round((move - today) / 86400000);
+  const diff  = Math.round((move-today)/86400000);
   badge.textContent = diff>0 ? `입주 D-${diff}` : diff===0 ? '🎉 입주일!' : `입주 D+${Math.abs(diff)}`;
   badge.onclick = () => { document.getElementById('move-date-input').value=data.moveDate; openModal('date-modal'); };
 }
@@ -531,36 +677,43 @@ async function saveMoveDate() {
   saveData(); closeModal('date-modal'); renderAll();
 }
 
-// ── KPI
+// ════════════════════════════════════════
+//  KPI
+// ════════════════════════════════════════
 function renderKPI() {
   const items = data.items || [];
-  const total  = items.reduce((s,i) => s+Number(i.amount||0), 0);
-  const paid   = items.filter(i=>i.status==='paid').reduce((s,i) => s+Number(i.amount||0), 0);
-  const due    = items.filter(i=>i.status==='due');
-  const dueAmt = due.reduce((s,i) => s+Number(i.amount||0), 0);
-  const paidPct = total>0 ? Math.round(paid/total*100) : 0;
-  const notDone = items.filter(i=>i.status!=='paid');
+  const total    = items.reduce((s,i) => s + effectiveAmt(i), 0);
+  const paid     = items.reduce((s,i) => s + paidAmt(i), 0);
+  const dueTotal = items.reduce((s,i) => s + dueAmt(i), 0);
+  const dueCount = items.filter(i => {
+    const st = derivedStatus(i);
+    return st === 'due' || (i.installments||[]).some(inst=>inst.status==='due');
+  }).length;
+  const notDoneCount = items.filter(i => derivedStatus(i) !== 'paid').length;
+  const paidPct = total > 0 ? Math.round(paid/total*100) : 0;
 
   document.getElementById('kpi-total').textContent    = fmt(total);
   document.getElementById('kpi-paid').textContent     = fmt(paid);
   document.getElementById('kpi-remain').textContent   = fmt(total - paid);
-  document.getElementById('kpi-paid-pct').textContent = paidPct+'%';
-  document.getElementById('pb-paid').style.width      = paidPct+'%';
-  document.getElementById('kpi-due-count').textContent = due.length+'건';
-  document.getElementById('kpi-due-amt').textContent  = '예정 합계: '+fmt(dueAmt);
-  document.getElementById('kpi-pending-count').textContent = notDone.length+'건';
+  document.getElementById('kpi-paid-pct').textContent = paidPct + '%';
+  document.getElementById('pb-paid').style.width      = paidPct + '%';
+  document.getElementById('kpi-due-count').textContent = dueCount + '건';
+  document.getElementById('kpi-due-amt').textContent  = '예정 합계: ' + fmt(dueTotal);
+  document.getElementById('kpi-pending-count').textContent = notDoneCount + '건';
 
-  const todos   = data.todos||[];
+  const todos   = data.todos || [];
   const doneTd  = todos.filter(t=>t.done).length;
-  const todoPct = todos.length>0 ? Math.round(doneTd/todos.length*100) : 0;
-  document.getElementById('kpi-todo').textContent         = todoPct+'%';
+  const todoPct = todos.length > 0 ? Math.round(doneTd/todos.length*100) : 0;
+  document.getElementById('kpi-todo').textContent         = todoPct + '%';
   document.getElementById('kpi-todo-detail').textContent  = `${doneTd} / ${todos.length}`;
-  document.getElementById('pb-todo').style.width          = todoPct+'%';
-  document.getElementById('todo-overall-pct').textContent = todoPct+'%';
-  document.getElementById('pb-todo-overall').style.width  = todoPct+'%';
+  document.getElementById('pb-todo').style.width          = todoPct + '%';
+  document.getElementById('todo-overall-pct').textContent = todoPct + '%';
+  document.getElementById('pb-todo-overall').style.width  = todoPct + '%';
 }
 
-// ── Cost table (derived from items, grouped by category)
+// ════════════════════════════════════════
+//  COST TABLE (derived, grouped by category)
+// ════════════════════════════════════════
 function renderCostTable() {
   const tbody = document.getElementById('cost-tbody');
   tbody.innerHTML = '';
@@ -571,7 +724,7 @@ function renderCostTable() {
   items.forEach((item, i) => {
     const cat = item.category || '기타';
     if (!groups[cat]) groups[cat] = [];
-    groups[cat].push({...item, _i: i});
+    groups[cat].push({...item, _i:i});
   });
 
   const orderedCats = [...CAT_ORDER.filter(c=>groups[c]), ...Object.keys(groups).filter(c=>!CAT_ORDER.includes(c))];
@@ -579,68 +732,96 @@ function renderCostTable() {
 
   orderedCats.forEach(cat => {
     const group = groups[cat];
-    const catTotal = group.reduce((s,i) => s+Number(i.amount||0), 0);
+    const catTotal = group.reduce((s,i) => s + effectiveAmt(i), 0);
     grandTotal += catTotal;
-    const color = CAT_COLOR[cat]||'#8b92a5';
+    const color = CAT_COLOR[cat] || '#8b92a5';
 
     // Category header
     const htr = document.createElement('tr');
     htr.className = 'cost-cat-header';
-    htr.innerHTML = `<td colspan="3"><span style="color:${color};font-weight:700">▸ ${cat}</span></td><td style="text-align:right;color:${color};font-weight:700">${fmt(catTotal)}</td>`;
+    htr.innerHTML = `<td colspan="2"><span style="color:${color};font-weight:700">▸ ${cat}</span></td><td style="text-align:right;color:${color};font-weight:700">${fmt(catTotal)}</td>`;
     tbody.appendChild(htr);
 
-    // Items
     group.forEach(item => {
-      const badge = item.status==='paid' ? '<span class="badge-paid">완료</span>'
-                  : item.status==='due'  ? '<span class="badge-due">예정</span>'
-                  :                        '<span class="badge-pending">미결제</span>';
-      const tr = document.createElement('tr');
-      tr.className = 'clickable';
-      tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}</td><td style="color:#8b92a5;font-size:0.82rem">${item.memo||''}</td><td>${fmt(item.amount)}</td><td style="text-align:center">${badge}</td>`;
-      tr.onclick = () => openItemModal(item._i);
-      tbody.appendChild(tr);
+      const st    = derivedStatus(item);
+      const badge = statusBadge(st);
+      const hasInst = item.installments && item.installments.length > 0;
+      const effAmt  = effectiveAmt(item);
+
+      if (hasInst) {
+        // Parent row (click to open modal)
+        const ptr = document.createElement('tr');
+        ptr.className = 'cost-parent-row clickable';
+        ptr.innerHTML = `<td style="padding-left:20px;font-weight:600;color:#1a1a2e">${item.name} <span style="font-size:0.72rem;color:#8b92a5">(${item.installments.length}회 분할)</span></td><td style="text-align:right;font-size:0.82rem;color:#8b92a5">${fmt(item.amount)} 기준</td><td style="text-align:center">${badge}</td>`;
+        ptr.onclick = () => openItemModal(item._i);
+        tbody.appendChild(ptr);
+
+        // Installment sub-rows
+        item.installments.forEach(inst => {
+          const instBadge = inst.status==='paid' ? '<span class="badge-paid">완료</span>'
+                          : inst.status==='due'  ? '<span class="badge-due">예정</span>'
+                          :                        '<span class="badge-pending">미납</span>';
+          const itr = document.createElement('tr');
+          itr.className = 'cost-inst-row clickable';
+          itr.innerHTML = `<td style="color:#1a1a2e">${item.name} <span style="color:#8b92a5">→</span> ${inst.title}${inst.date?` <span style="color:#8b92a5;font-size:0.72rem">(${fmtDate(inst.date)})</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(inst.amount)}<span style="color:#b0b7c3;font-size:0.72rem;margin-left:4px">${inst.pct?inst.pct+'%':''}</span></td><td style="text-align:center">${instBadge}</td>`;
+          itr.onclick = () => openItemModal(item._i);
+          tbody.appendChild(itr);
+        });
+      } else {
+        // Simple row
+        const tr = document.createElement('tr');
+        tr.className = 'clickable';
+        tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}${item.memo?` <span style="font-size:0.75rem;color:#b0b7c3">${item.memo}</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(effAmt)}</td><td style="text-align:center">${badge}</td>`;
+        tr.onclick = () => openItemModal(item._i);
+        tbody.appendChild(tr);
+      }
     });
   });
 
   const totalTr = document.createElement('tr');
   totalTr.className = 'cost-total-row';
-  totalTr.innerHTML = `<td colspan="2">합계</td><td style="text-align:right;font-size:1rem">${fmt(grandTotal)}</td><td></td>`;
+  totalTr.innerHTML = `<td style="font-weight:700">합계</td><td style="text-align:right;font-size:1rem;font-weight:800">${fmt(grandTotal)}</td><td></td>`;
   tbody.appendChild(totalTr);
   document.getElementById('total-bar-val').textContent = fmt(grandTotal);
 }
 
-// ── Timeline (derived from items with dueDate, grouped by same date)
+// ════════════════════════════════════════
+//  TIMELINE (derived — same-date grouped)
+// ════════════════════════════════════════
 function renderTimeline() {
   const tl    = document.getElementById('payment-timeline');
   const empty = document.getElementById('timeline-empty');
   tl.innerHTML = '';
 
-  const withDate = (data.items||[])
-    .map((item, i) => ({...item, _i: i}))
-    .filter(i => i.dueDate);
+  // Collect all entries (installments or simple items with date)
+  const entries = [];
+  (data.items || []).forEach((item, idx) => {
+    if (item.installments && item.installments.length > 0) {
+      item.installments.forEach(inst => {
+        if (inst.date) entries.push({ date:inst.date, name:`${item.name} → ${inst.title}`, amount:Number(inst.amount||0), status:inst.status, parentIdx:idx });
+      });
+    } else if (item.dueDate) {
+      entries.push({ date:item.dueDate, name:item.name, amount:effectiveAmt(item), status:item.status, parentIdx:idx });
+    }
+  });
 
-  if (!withDate.length) {
-    tl.style.display = 'none'; empty.style.display = 'block'; return;
-  }
-  tl.style.display = 'block'; empty.style.display = 'none';
+  if (!entries.length) { tl.style.display='none'; empty.style.display='block'; return; }
+  tl.style.display='block'; empty.style.display='none';
 
   // Group by date
   const byDate = {};
-  withDate.forEach(i => {
-    if (!byDate[i.dueDate]) byDate[i.dueDate] = [];
-    byDate[i.dueDate].push(i);
-  });
+  entries.forEach(e => { if (!byDate[e.date]) byDate[e.date]=[]; byDate[e.date].push(e); });
 
   const today = new Date(); today.setHours(0,0,0,0);
 
   Object.keys(byDate).sort().forEach(date => {
-    const group = byDate[date];
+    const group   = byDate[date];
     const dateObj = new Date(date); dateObj.setHours(0,0,0,0);
     const daysAway = Math.round((dateObj - today) / 86400000);
-    const allPaid  = group.every(i => i.status === 'paid');
-    const hasDue   = group.some(i => i.status === 'due');
-    const dotCls   = allPaid ? 'done' : hasDue ? 'upcoming' : daysAway <= 30 ? 'upcoming' : 'future';
-    const groupTotal = group.reduce((s,i) => s+Number(i.amount||0), 0);
+    const allDone  = group.every(e => e.status==='paid');
+    const hasDue   = group.some(e => e.status==='due');
+    const dotCls   = allDone ? 'done' : hasDue||daysAway<=30 ? 'upcoming' : 'future';
+    const groupAmt = group.reduce((s,e) => s+e.amount, 0);
 
     const g = document.createElement('div');
     g.className = 'tl-group';
@@ -648,37 +829,40 @@ function renderTimeline() {
       <div class="tl-date-block">
         <div class="tl-dot ${dotCls}"></div>
         <div class="tl-date-label">${fmtDate(date)}</div>
-        <div class="tl-date-sub">${group.length}건 · 합계 ${fmt(groupTotal)}</div>
+        <div class="tl-date-sub">${group.length}건 · 합계 ${fmt(groupAmt)}</div>
       </div>
       <div class="tl-items"></div>`;
 
     const itemsDiv = g.querySelector('.tl-items');
-    group.forEach(item => {
-      const badge = item.status==='paid' ? '<span class="badge-paid">완료</span>'
-                  : item.status==='due'  ? '<span class="badge-due">예정</span>'
-                  :                        '<span class="badge-pending">미납</span>';
+    group.forEach(entry => {
+      const badge = entry.status==='paid' ? '<span class="badge-paid">완료</span>'
+                  : entry.status==='due'  ? '<span class="badge-due">예정</span>'
+                  :                         '<span class="badge-pending">미납</span>';
       const d = document.createElement('div');
       d.className = 'tl-item';
-      d.innerHTML = `<div class="tl-item-row"><div><div class="tl-item-name">${item.name}</div><div class="tl-item-amt">${fmt(item.amount)}</div></div>${badge}</div>`;
-      d.onclick = () => openItemModal(item._i);
+      d.innerHTML = `<div class="tl-item-row"><div><div class="tl-item-name">${entry.name}</div><div class="tl-item-amt">${fmt(entry.amount)}</div></div>${badge}</div>`;
+      d.onclick = () => openItemModal(entry.parentIdx);
       itemsDiv.appendChild(d);
     });
     tl.appendChild(g);
   });
 }
 
-// ── Item cards (master list)
+// ════════════════════════════════════════
+//  ITEM CARDS (master list)
+// ════════════════════════════════════════
 let activeItemTab = '전체';
 function renderItems() {
   const items = data.items || [];
   const cats  = ['전체', ...new Set(items.map(i=>i.category).filter(Boolean))];
+
   const tabsEl = document.getElementById('item-tabs');
   tabsEl.innerHTML = '';
   cats.forEach(cat => {
+    const cnt = cat==='전체' ? items.length : items.filter(i=>i.category===cat).length;
     const s = document.createElement('span');
     s.className = 'tab' + (cat===activeItemTab ? ' active' : '');
-    const cnt = cat==='전체' ? items.length : items.filter(i=>i.category===cat).length;
-    s.textContent = cat + ` (${cnt})`;
+    s.textContent = `${cat} (${cnt})`;
     s.onclick = () => { activeItemTab=cat; renderItems(); };
     tabsEl.appendChild(s);
   });
@@ -688,41 +872,67 @@ function renderItems() {
   const filtered = activeItemTab==='전체' ? items : items.filter(i=>i.category===activeItemTab);
 
   filtered.forEach(item => {
-    const idx   = data.items.indexOf(item);
-    const color = CAT_COLOR[item.category] || '#8b92a5';
-    const bg    = CAT_BG[item.category]    || '#f0f2f5';
-    const stCls = item.status==='paid' ? 'st-paid' : item.status==='due' ? 'st-due' : 'st-pending';
-    const badgeHTML = item.status==='paid'
-      ? `<span class="item-badge badge-paid" onclick="cycleStatus(${idx},event)">✅ 완료</span>`
-      : item.status==='due'
-      ? `<span class="item-badge badge-due" onclick="cycleStatus(${idx},event)">🕐 예정</span>`
-      : `<span class="item-badge badge-pending" onclick="cycleStatus(${idx},event)">○ 미결제</span>`;
+    const idx    = data.items.indexOf(item);
+    const color  = CAT_COLOR[item.category] || '#8b92a5';
+    const st     = derivedStatus(item);
+    const stCls  = st==='paid'?'st-paid':st==='partial'?'st-partial':st==='due'?'st-due':'';
+    const hasInst = item.installments && item.installments.length > 0;
+    const effAmt  = effectiveAmt(item);
+    const pAmt    = paidAmt(item);
+
+    // Status badge (click → cycle for non-installment; open modal for installment)
+    const badgeClick = hasInst
+      ? `onclick="openItemModal(${idx})"`
+      : `onclick="cycleStatus(${idx},event)"`;
+    const badgeHTML = `<span class="item-badge ${st==='paid'?'badge-paid':st==='partial'?'badge-partial':st==='due'?'badge-due':'badge-pending'}" ${badgeClick}>${st==='paid'?'✅ 완료':st==='partial'?'⬤ 부분완료':st==='due'?'🕐 예정':'○ 미결제'}</span>`;
+
+    let instHTML = '';
+    if (hasInst) {
+      const total = item.installments.length;
+      const paid  = item.installments.filter(i=>i.status==='paid').length;
+      const pct   = total > 0 ? Math.round(paid/total*100) : 0;
+      // Next unpaid installment
+      const next  = item.installments.find(i=>i.status!=='paid');
+      const dots  = item.installments.map(i => `<span class="inst-dot ${i.status}"></span>`).join('');
+      instHTML = `
+        <div class="item-prog-wrap">
+          <div class="item-prog-bar-bg"><div class="item-prog-bar-fill" style="width:${pct}%"></div></div>
+          <div class="item-prog-label">${paid}/${total} 완료 · ${fmt(pAmt)} 납부</div>
+        </div>
+        <div class="item-inst-dots">${dots}</div>
+        ${next ? `<div class="item-next">다음: ${next.title} ${fmt(next.amount)}${next.date?` · ${fmtDate(next.date)}`:''}</div>` : ''}`;
+    }
+
     const card = document.createElement('div');
     card.className = `item-card ${stCls}`;
     card.innerHTML = `
       ${badgeHTML}
       <div class="item-cat" style="color:${color}">${item.category}</div>
       <div class="item-name">${item.name}</div>
-      <div class="item-amt">${fmt(item.amount)}</div>
-      ${item.dueDate ? `<div class="item-date">📅 ${fmtDate(item.dueDate)}</div>` : ''}
-      ${item.memo    ? `<div class="item-memo">${item.memo}</div>` : ''}`;
+      <div class="item-amt">${fmt(effAmt)}${hasInst && item.amount ? ` <span style="font-size:0.72rem;color:#b0b7c3">(기준 ${fmt(item.amount)})</span>` : ''}</div>
+      ${!hasInst && item.dueDate ? `<div class="item-date">📅 ${fmtDate(item.dueDate)}</div>` : ''}
+      ${item.memo && !hasInst ? `<div class="item-memo">${esc(item.memo)}</div>` : ''}
+      ${instHTML}`;
     card.onclick = e => { if (!e.target.classList.contains('item-badge')) openItemModal(idx); };
     gridEl.appendChild(card);
   });
 
-  const total = items.reduce((s,i) => s+Number(i.amount||0), 0);
-  document.getElementById('item-total-bar').textContent = fmt(total);
+  document.getElementById('item-total-bar').textContent = fmt(items.reduce((s,i)=>s+effectiveAmt(i),0));
 }
 
-function cycleStatus(i, e) {
+function cycleStatus(idx, e) {
   e.stopPropagation();
+  const item = data.items[idx];
+  if (item.installments && item.installments.length > 0) { openItemModal(idx); return; }
   const order = ['pending','due','paid'];
-  const cur = data.items[i].status || 'pending';
-  data.items[i].status = order[(order.indexOf(cur)+1) % 3];
+  const cur = item.status || 'pending';
+  item.status = order[(order.indexOf(cur)+1) % 3];
   saveData(); renderAll();
 }
 
-// ── Todos
+// ════════════════════════════════════════
+//  TODOS
+// ════════════════════════════════════════
 let activeTodoTab = '전체';
 function renderTodos() {
   const todos = data.todos || [];
@@ -749,7 +959,7 @@ function renderTodos() {
       <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo(${i},event)">${t.done?'✓':''}</div>
       <div class="todo-text" onclick="openTodoModal(${i})">
         <div class="todo-label ${t.done?'done':''}">${t.name}</div>
-        ${t.note ? `<div class="todo-note">${t.note}</div>` : ''}
+        ${t.note?`<div class="todo-note">${t.note}</div>`:''}
       </div>
       <span class="todo-priority ${pc}">${pl}</span>`;
     listEl.appendChild(div);
@@ -761,23 +971,124 @@ function toggleTodo(i, e) {
   saveData(); renderAll();
 }
 
-// ── Render all
+// ════════════════════════════════════════
+//  RENDER ALL
+// ════════════════════════════════════════
 function renderAll() {
   updateDday(); renderKPI(); renderCostTable(); renderTimeline(); renderTodos(); renderItems();
 }
 
-// ── Modals
+// ════════════════════════════════════════
+//  MODALS
+// ════════════════════════════════════════
 function openModal(id)  { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(el => {
-  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('show'); });
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
 });
 
-// Item modal
+// ── Installment row helpers ──
+function onTotalAmtChange() {
+  // Recalc installment amounts when total changes
+  recalcInstAmts();
+  updateInstTotal();
+}
+
+function recalcInstAmts() {
+  const total = Number(document.getElementById('item-amount').value || 0);
+  if (total <= 0) return;
+  document.querySelectorAll('.inst-row').forEach(row => {
+    const pctInput = row.querySelector('[data-f="pct"]');
+    const amtInput = row.querySelector('[data-f="amount"]');
+    const pct = Number(pctInput.value || 0);
+    if (pct > 0) amtInput.value = Math.round(total * pct / 100);
+  });
+  updateInstTotal();
+}
+
+function onInstPct(el) {
+  const total = Number(document.getElementById('item-amount').value || 0);
+  const row = el.closest('.inst-row');
+  const amtInput = row.querySelector('[data-f="amount"]');
+  if (total > 0) amtInput.value = Math.round(total * Number(el.value||0) / 100);
+  updateInstTotal();
+}
+
+function onInstAmt(el) {
+  const total = Number(document.getElementById('item-amount').value || 0);
+  const row = el.closest('.inst-row');
+  const pctInput = row.querySelector('[data-f="pct"]');
+  if (total > 0) pctInput.value = (Number(el.value||0) / total * 100).toFixed(1);
+  updateInstTotal();
+}
+
+function updateInstTotal() {
+  let sum = 0;
+  document.querySelectorAll('.inst-row [data-f="amount"]').forEach(el => sum += Number(el.value||0));
+  const label = document.getElementById('inst-total-label');
+  if (label) label.textContent = sum > 0 ? `분할 합계: ${fmt(sum)}` : '';
+}
+
+function addInstRow(inst) {
+  const d = inst || { title:'', pct:'', amount:'', date:'', status:'pending' };
+  const div = document.createElement('div');
+  div.className = 'inst-row';
+  div.innerHTML = `
+    <div class="inst-row-top">
+      <input class="form-input inst-small" placeholder="제목 (예: 계약금, 중도금 1차)" value="${esc(d.title)}" data-f="title">
+      <button type="button" class="inst-del-btn" onclick="this.closest('.inst-row').remove();updateInstTotal()">×</button>
+    </div>
+    <div class="inst-row-bottom">
+      <div>
+        <span class="inst-row-label">비율 (%)</span>
+        <input class="form-input inst-small" type="number" step="0.1" placeholder="%" value="${d.pct}" data-f="pct" oninput="onInstPct(this)">
+      </div>
+      <div>
+        <span class="inst-row-label">금액 (만원)</span>
+        <input class="form-input inst-small" type="number" placeholder="만원" value="${d.amount}" data-f="amount" oninput="onInstAmt(this)">
+      </div>
+      <div>
+        <span class="inst-row-label">납부일</span>
+        <input class="form-input inst-small" type="date" value="${d.date}" data-f="date">
+      </div>
+      <div>
+        <span class="inst-row-label">상태</span>
+        <select class="form-input inst-small" data-f="status">
+          <option value="pending" ${d.status==='pending'?'selected':''}>미납</option>
+          <option value="due"     ${d.status==='due'    ?'selected':''}>예정</option>
+          <option value="paid"    ${d.status==='paid'   ?'selected':''}>완료</option>
+        </select>
+      </div>
+    </div>`;
+  document.getElementById('inst-rows').appendChild(div);
+  updateInstTotal();
+}
+
+function toggleInstSection() {
+  const checked = document.getElementById('use-inst').checked;
+  document.getElementById('inst-area').style.display    = checked ? 'block' : 'none';
+  document.getElementById('simple-fields').style.display = checked ? 'none'  : 'block';
+  document.getElementById('simple-status-field') && (document.getElementById('simple-status-field').style.display = checked ? 'none' : 'block');
+  document.getElementById('inst-ref-label').textContent  = checked ? '— 분할 납부 기준 총액' : '';
+}
+
+function getInstallments() {
+  return Array.from(document.querySelectorAll('.inst-row')).map(row => ({
+    title:  row.querySelector('[data-f="title"]').value.trim(),
+    pct:    Number(row.querySelector('[data-f="pct"]').value   || 0),
+    amount: Number(row.querySelector('[data-f="amount"]').value || 0),
+    date:   row.querySelector('[data-f="date"]').value,
+    status: row.querySelector('[data-f="status"]').value
+  })).filter(i => i.title);
+}
+
+// ── Item Modal ──
 function openItemModal(idx) {
-  const isNew = idx===null;
+  const isNew = idx === null;
   document.getElementById('item-idx').value = isNew ? '' : idx;
   document.getElementById('item-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
+  document.getElementById('inst-rows').innerHTML = '';
+
   if (!isNew) {
     const it = data.items[idx];
     document.getElementById('item-name').value     = it.name;
@@ -786,35 +1097,58 @@ function openItemModal(idx) {
     document.getElementById('item-duedate').value  = it.dueDate || '';
     document.getElementById('item-status').value   = it.status || 'pending';
     document.getElementById('item-memo').value     = it.memo || '';
+
+    const hasInst = it.installments && it.installments.length > 0;
+    document.getElementById('use-inst').checked = hasInst;
+    toggleInstSection();
+    if (hasInst) it.installments.forEach(inst => addInstRow(inst));
   } else {
     ['item-name','item-amount','item-duedate','item-memo'].forEach(id => document.getElementById(id).value='');
     document.getElementById('item-category').value = '기타';
     document.getElementById('item-status').value   = 'pending';
+    document.getElementById('use-inst').checked    = false;
+    toggleInstSection();
   }
+  updateInstTotal();
   openModal('item-modal');
 }
+
 function saveItem() {
-  const idx = document.getElementById('item-idx').value;
+  const idx     = document.getElementById('item-idx').value;
+  const useInst = document.getElementById('use-inst').checked;
+  const insts   = useInst ? getInstallments() : null;
+
   const obj = {
     name:     document.getElementById('item-name').value,
     category: document.getElementById('item-category').value,
     amount:   Number(document.getElementById('item-amount').value || 0),
-    dueDate:  document.getElementById('item-duedate').value || '',
-    status:   document.getElementById('item-status').value,
     memo:     document.getElementById('item-memo').value
   };
+
+  if (useInst && insts && insts.length > 0) {
+    obj.installments = insts;
+    obj.dueDate = '';
+    obj.status  = derivedStatus(obj);
+  } else {
+    obj.installments = null;
+    obj.dueDate = document.getElementById('item-duedate').value || '';
+    obj.status  = document.getElementById('item-status').value;
+  }
+
   if (idx === '') data.items.push(obj);
   else data.items[Number(idx)] = obj;
+
   saveData(); closeModal('item-modal'); renderAll();
 }
+
 function deleteItem() {
   data.items.splice(Number(document.getElementById('item-idx').value), 1);
   saveData(); closeModal('item-modal'); renderAll();
 }
 
-// Todo modal
+// ── Todo Modal ──
 function openTodoModal(idx) {
-  const isNew = idx===null;
+  const isNew = idx === null;
   document.getElementById('todo-idx').value = isNew ? '' : idx;
   document.getElementById('todo-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
   if (!isNew) {
@@ -847,12 +1181,14 @@ function deleteTodo() {
   saveData(); closeModal('todo-modal'); renderAll();
 }
 
-// ── INIT
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
 (async () => {
   await fetchData();
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.add('hidden');
-  setTimeout(() => overlay.style.display='none', 400);
+  setTimeout(() => overlay.style.display = 'none', 400);
   renderAll();
 })();
 </script>
