@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🏠 아파트 입주 준비 대시보드</title>
+<title>🏠 하우스 태동 입주 준비 대시보드</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <style>
@@ -32,10 +32,14 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 .section-gap { margin-top:24px; }
 
 .card { background:white; border-radius:16px; padding:22px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.07); position:relative; overflow:hidden; }
+.card-kpi { cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
+.card-kpi:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12); }
+.card-kpi:active { transform:translateY(0); }
 .card-title { font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:#8b92a5; margin-bottom:10px; }
-.card-value { font-size:1.9rem; font-weight:800; color:#1a1a2e; letter-spacing:-1px; line-height:1; }
+.card-value { font-size:1.65rem; font-weight:800; color:#1a1a2e; letter-spacing:-0.5px; line-height:1.15; word-break:keep-all; }
 .card-sub { font-size:0.82rem; color:#8b92a5; margin-top:6px; }
 .card-accent { position:absolute; top:0; right:0; width:5px; height:100%; border-radius:0 16px 16px 0; }
+.card-link-hint { position:absolute; bottom:10px; right:14px; font-size:0.68rem; color:#cbd5e1; }
 .progress-wrap { margin-top:10px; }
 .progress-label { display:flex; justify-content:space-between; font-size:0.78rem; color:#8b92a5; margin-bottom:5px; }
 .progress-bar-bg { background:#eef0f5; border-radius:99px; height:8px; overflow:hidden; }
@@ -80,7 +84,6 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 .tl-item:hover { background:#fafbff; }
 .tl-item-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .tl-item-name  { font-size:0.88rem; font-weight:600; color:#1a1a2e; }
-.tl-item-parent { font-size:0.72rem; color:#8b92a5; }
 .tl-item-amt   { font-size:0.82rem; color:#6366f1; font-weight:700; white-space:nowrap; }
 
 /* Todo */
@@ -164,6 +167,10 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 .inst-small { font-size:0.82rem; }
 .inst-section { border-top:1.5px solid #e5e7ef; margin-top:14px; padding-top:14px; }
 
+/* Scroll highlight animation */
+@keyframes sectionPulse { 0%,100%{box-shadow:0 2px 12px rgba(0,0,0,0.07)} 50%{box-shadow:0 0 0 3px #6366f1,0 6px 24px rgba(99,102,241,0.2)} }
+.section-highlight { animation:sectionPulse 0.8s ease; }
+
 @media(max-width:900px) { .grid-3 { grid-template-columns:1fr 1fr; } }
 @media(max-width:640px) { .grid-3,.grid-2 { grid-template-columns:1fr; } header { padding:20px 18px; } .container { padding:18px 14px; } .inst-row-bottom { grid-template-columns:55px 1fr 110px 75px; } }
 @media(max-width:400px) { .inst-row-bottom { grid-template-columns:1fr 1fr; } }
@@ -179,7 +186,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 
 <header>
   <div>
-    <h1>🏠 아파트 입주 준비 대시보드</h1>
+    <h1>🏠 하우스 태동 입주 준비 대시보드</h1>
     <div class="subtitle">e편한세상 검단 웰카운티 104동 0704호</div>
   </div>
   <div class="dday-badge" id="dday-badge">-</div>
@@ -187,15 +194,16 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 
 <div class="container">
 
-  <!-- KPI -->
+  <!-- KPI (클릭 → 해당 섹션으로 이동) -->
   <div class="grid-3">
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#6366f1"></div>
       <div class="card-title">총 비용</div>
       <div class="card-value" id="kpi-total">-</div>
       <div class="card-sub">전체 항목 합계</div>
+      <div class="card-link-hint">↓ 비용 상세</div>
     </div>
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#22c55e"></div>
       <div class="card-title">납부 / 구매 완료</div>
       <div class="card-value" id="kpi-paid">-</div>
@@ -203,14 +211,16 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
         <div class="progress-label"><span>완료율</span><span id="kpi-paid-pct">-</span></div>
         <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-paid" style="background:#22c55e;width:0%"></div></div>
       </div>
+      <div class="card-link-hint">↓ 비용 상세</div>
     </div>
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-items')">
       <div class="card-accent" style="background:#f97316"></div>
       <div class="card-title">잔여 납부 / 구매액</div>
       <div class="card-value" id="kpi-remain">-</div>
       <div class="card-sub">미완료 항목 합계</div>
+      <div class="card-link-hint">↓ 항목 리스트</div>
     </div>
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-todo')">
       <div class="card-accent" style="background:#a855f7"></div>
       <div class="card-title">할 일 진행률</div>
       <div class="card-value" id="kpi-todo">-</div>
@@ -218,24 +228,27 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
         <div class="progress-label"><span>완료 항목</span><span id="kpi-todo-detail">-</span></div>
         <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-todo" style="background:#a855f7;width:0%"></div></div>
       </div>
+      <div class="card-link-hint">↓ 할 일 목록</div>
     </div>
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-timeline')">
       <div class="card-accent" style="background:#f97316"></div>
       <div class="card-title">납부 / 결제 예정</div>
       <div class="card-value" id="kpi-due-count">-</div>
       <div class="card-sub" id="kpi-due-amt">예정 합계: -</div>
+      <div class="card-link-hint">↓ 납부 일정</div>
     </div>
-    <div class="card">
+    <div class="card card-kpi" onclick="scrollToSection('section-items')">
       <div class="card-accent" style="background:#f43f5e"></div>
       <div class="card-title">미완료 항목</div>
       <div class="card-value" id="kpi-pending-count">-</div>
       <div class="card-sub">납부예정 포함</div>
+      <div class="card-link-hint">↓ 항목 리스트</div>
     </div>
   </div>
 
   <!-- 비용 상세 + 납부일정 -->
   <div class="grid-2 section-gap">
-    <div class="card" style="overflow:auto">
+    <div class="card" id="section-cost" style="overflow:auto">
       <div class="section-header">
         <div class="section-title"><div class="section-icon" style="background:#eef2ff">💰</div>비용 상세 내역</div>
         <span style="font-size:0.73rem;color:#8b92a5">리스트 자동 연동</span>
@@ -252,7 +265,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="section-timeline">
       <div class="section-header">
         <div class="section-title"><div class="section-icon" style="background:#fff3e8">📅</div>납부 일정</div>
         <span style="font-size:0.73rem;color:#8b92a5">납부일 항목 자동 표시</span>
@@ -265,7 +278,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
   </div>
 
   <!-- 할 일 -->
-  <div class="card section-gap">
+  <div class="card section-gap" id="section-todo">
     <div class="section-header">
       <div class="section-title"><div class="section-icon" style="background:#f3e8ff">✅</div>입주 준비 할 일</div>
       <button class="btn-add" onclick="openTodoModal(null)">+ 항목 추가</button>
@@ -284,7 +297,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
   </div>
 
   <!-- 구매/결제/납부 메인 리스트 -->
-  <div class="card section-gap">
+  <div class="card section-gap" id="section-items">
     <div class="section-header">
       <div class="section-title"><div class="section-icon" style="background:#e0f2fe">📋</div>구매 · 결제 · 납부 리스트</div>
       <button class="btn-add" onclick="openItemModal(null)">+ 항목 추가</button>
@@ -327,7 +340,9 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
     </div>
     <div class="form-group">
       <label class="form-label">전체 금액 (만원) <span id="inst-ref-label" style="font-size:0.75rem;font-weight:400;color:#8b92a5"></span></label>
-      <input class="form-input" id="item-amount" type="number" placeholder="예: 55650" oninput="onTotalAmtChange()">
+      <input class="form-input" id="item-amount" type="text" inputmode="decimal"
+        placeholder="예: 55,650"
+        onfocus="amtFocus(this)" onblur="amtBlur(this)" oninput="onTotalAmtChange()">
     </div>
 
     <!-- Simple (no installments) -->
@@ -443,31 +458,105 @@ const CAT_BG    = { '분양가':'#eef2ff','옵션':'#f3e8ff','세금':'#fee2e2',
 const CAT_ORDER = ['분양가','옵션','세금','가전','가구','침구','인테리어','기타'];
 
 // ════════════════════════════════════════
-//  ITEM HELPERS (installment-aware)
+//  FORMAT HELPERS
 // ════════════════════════════════════════
 
-/** Total cost of an item (uses installment sum if installments present) */
+/**
+ * 쉼표+소수점1자리 기준 포맷 (만원 단위, 목록/카드용)
+ * e.g. 5565 → "5,565만원"  |  482.9 → "482.9만원"  |  55650 → "5억 5,650만원"
+ */
+function fmt(n) {
+  n = Number(n) || 0;
+  if (n === 0) return '0만원';
+  // 억 단위 이상
+  if (n >= 10000) {
+    const eok = Math.floor(n / 10000);
+    const man = Math.round((n % 10000) * 10) / 10;
+    if (man > 0) {
+      return `${eok.toLocaleString('ko-KR')}억 ${man.toLocaleString('ko-KR', {maximumFractionDigits:1})}만원`;
+    }
+    return `${eok.toLocaleString('ko-KR')}억`;
+  }
+  // 만원 단위 (소수점 1자리, 3자리 쉼표)
+  const rounded = Math.round(n * 10) / 10;
+  return rounded.toLocaleString('ko-KR', {maximumFractionDigits:1}) + '만원';
+}
+
+/**
+ * KPI 카드용 — 원 단위 그대로 표기 (3자리 쉼표)
+ * e.g. 55650 (만원) → "556,500,000원"  |  482.9 → "4,829,000원"
+ */
+function fmtFull(n) {
+  n = Number(n) || 0;
+  if (n === 0) return '0원';
+  const won = Math.round(n * 10000);
+  return won.toLocaleString('ko-KR') + '원';
+}
+
+/** 날짜 포맷 */
+function fmtDate(d) {
+  if (!d) return '';
+  const p = d.split('-');
+  return `${p[0]}.${p[1]}.${p[2]}`;
+}
+
+/** HTML 이스케이프 */
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/** 쉼표 제거 후 숫자 파싱 */
+function parseAmt(s) {
+  return Number(String(s || '').replace(/,/g, '')) || 0;
+}
+
+/** 입력용 포맷 (쉼표, 소수점1자리) */
+function fmtInput(n) {
+  n = Math.round((Number(n) || 0) * 10) / 10;
+  if (n === 0) return '';
+  return n.toLocaleString('ko-KR', {maximumFractionDigits:1});
+}
+
+/** 금액 input — focus: 쉼표 제거 / blur: 쉼표 적용 */
+function amtFocus(el) {
+  const v = parseAmt(el.value);
+  el.value = v > 0 ? String(v) : '';
+}
+function amtBlur(el) {
+  const v = parseAmt(el.value);
+  el.value = fmtInput(v);
+}
+
+// ════════════════════════════════════════
+//  SCROLL TO SECTION
+// ════════════════════════════════════════
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'start' });
+  // 깜빡임 효과
+  el.classList.remove('section-highlight');
+  void el.offsetWidth;
+  el.classList.add('section-highlight');
+  setTimeout(() => el.classList.remove('section-highlight'), 900);
+}
+
+// ════════════════════════════════════════
+//  ITEM HELPERS (installment-aware)
+// ════════════════════════════════════════
 function effectiveAmt(item) {
   if (item.installments && item.installments.length > 0)
     return item.installments.reduce((s, inst) => s + (Number(inst.amount) || 0), 0);
   return Number(item.amount) || 0;
 }
-
-/** Amount already paid */
 function paidAmt(item) {
   if (item.installments && item.installments.length > 0)
     return item.installments.filter(i => i.status === 'paid').reduce((s, i) => s + (Number(i.amount) || 0), 0);
   return item.status === 'paid' ? (Number(item.amount) || 0) : 0;
 }
-
-/** Amount marked as "due" (예정) */
 function dueAmt(item) {
   if (item.installments && item.installments.length > 0)
     return item.installments.filter(i => i.status === 'due').reduce((s, i) => s + (Number(i.amount) || 0), 0);
   return item.status === 'due' ? (Number(item.amount) || 0) : 0;
 }
-
-/** Derived status: paid / partial / due / pending */
 function derivedStatus(item) {
   if (!item.installments || !item.installments.length) return item.status || 'pending';
   const total = item.installments.length;
@@ -477,7 +566,6 @@ function derivedStatus(item) {
   if (item.installments.some(i => i.status === 'due')) return 'due';
   return 'pending';
 }
-
 function statusBadge(st) {
   if (st === 'paid')    return '<span class="badge-paid">✅ 완료</span>';
   if (st === 'partial') return '<span class="badge-partial">⬤ 부분완료</span>';
@@ -492,44 +580,44 @@ function defaultItems() {
   return [
     { name:'분양가', category:'분양가', amount:0, status:'pending', dueDate:'', memo:'',
       installments:[
-        {title:'계약금',      pct:10, amount:0, date:'', status:'pending'},
-        {title:'중도금 1차',  pct:10, amount:0, date:'', status:'pending'},
-        {title:'잔금',        pct:60, amount:0, date:'', status:'pending'},
+        {title:'계약금',     pct:10, amount:0, date:'', status:'pending'},
+        {title:'중도금 1차', pct:10, amount:0, date:'', status:'pending'},
+        {title:'잔금',       pct:60, amount:0, date:'', status:'pending'},
       ]
     },
-    {name:'발코니 확장',              category:'옵션',     amount:483,  status:'pending', dueDate:'', memo:'VAT 포함'},
-    {name:'시스템에어컨 (LG 프리미엄)',category:'옵션',     amount:690,  status:'pending', dueDate:'', memo:'VAT 포함, 전실 4대'},
-    {name:'추가선택품목 III',          category:'옵션',     amount:245,  status:'pending', dueDate:'', memo:'주방벽+거실마감+탄성코트'},
-    {name:'취득세',                    category:'세금',     amount:0,    status:'pending', dueDate:'', memo:''},
-    {name:'냉장고',                    category:'가전',     amount:200,  status:'pending', dueDate:'', memo:''},
-    {name:'세탁기/건조기',             category:'가전',     amount:200,  status:'pending', dueDate:'', memo:''},
-    {name:'TV',                        category:'가전',     amount:150,  status:'pending', dueDate:'', memo:''},
-    {name:'공기청정기',                category:'가전',     amount:50,   status:'pending', dueDate:'', memo:''},
-    {name:'로봇청소기',                category:'가전',     amount:80,   status:'pending', dueDate:'', memo:''},
-    {name:'침대/매트리스',             category:'가구',     amount:250,  status:'pending', dueDate:'', memo:''},
-    {name:'소파',                      category:'가구',     amount:120,  status:'pending', dueDate:'', memo:''},
-    {name:'식탁/의자',                 category:'가구',     amount:80,   status:'pending', dueDate:'', memo:''},
-    {name:'커튼/블라인드',             category:'인테리어', amount:50,   status:'pending', dueDate:'', memo:''},
-    {name:'조명 교체',                 category:'인테리어', amount:30,   status:'pending', dueDate:'', memo:''},
+    {name:'발코니 확장',              category:'옵션',     amount:482.9, status:'pending', dueDate:'', memo:'VAT 포함'},
+    {name:'시스템에어컨 (LG 프리미엄)',category:'옵션',     amount:690,   status:'pending', dueDate:'', memo:'VAT 포함, 전실 4대'},
+    {name:'추가선택품목 III',          category:'옵션',     amount:245,   status:'pending', dueDate:'', memo:'주방벽+거실마감+탄성코트'},
+    {name:'취득세',                    category:'세금',     amount:0,     status:'pending', dueDate:'', memo:''},
+    {name:'냉장고',                    category:'가전',     amount:200,   status:'pending', dueDate:'', memo:''},
+    {name:'세탁기/건조기',             category:'가전',     amount:200,   status:'pending', dueDate:'', memo:''},
+    {name:'TV',                        category:'가전',     amount:150,   status:'pending', dueDate:'', memo:''},
+    {name:'공기청정기',                category:'가전',     amount:50,    status:'pending', dueDate:'', memo:''},
+    {name:'로봇청소기',                category:'가전',     amount:80,    status:'pending', dueDate:'', memo:''},
+    {name:'침대/매트리스',             category:'가구',     amount:250,   status:'pending', dueDate:'', memo:''},
+    {name:'소파',                      category:'가구',     amount:120,   status:'pending', dueDate:'', memo:''},
+    {name:'식탁/의자',                 category:'가구',     amount:80,    status:'pending', dueDate:'', memo:''},
+    {name:'커튼/블라인드',             category:'인테리어', amount:50,    status:'pending', dueDate:'', memo:''},
+    {name:'조명 교체',                 category:'인테리어', amount:30,    status:'pending', dueDate:'', memo:''},
   ];
 }
 function defaultTodos() {
   return [
-    {name:'붙박이장 시공 견적',      note:'최소 3개 업체 비교',       category:'시공',  priority:'high', done:false},
-    {name:'새집증후군 베이크아웃',   note:'입주 전 2~3일 고온 환기',  category:'환경',  priority:'high', done:false},
-    {name:'줄눈 시공',               note:'타일 사이 오염 방지',      category:'시공',  priority:'high', done:false},
-    {name:'냉장고장 제작/시공',      note:'냉장고 사이즈 확인 후',    category:'시공',  priority:'high', done:false},
-    {name:'유리난간 설치 확인',      note:'시공 상태 및 안전 점검',   category:'시공',  priority:'mid',  done:false},
-    {name:'인터넷 이전 신청',        note:'KT/SKT/LG 비교',          category:'생활',  priority:'mid',  done:false},
-    {name:'가스 개통 신청',          note:'입주일 전 신청 필수',      category:'생활',  priority:'high', done:false},
-    {name:'이사 업체 선정',          note:'사다리차 포함 여부 확인',  category:'이사',  priority:'high', done:false},
-    {name:'각종 주소 변경',          note:'은행, 보험, 병원 등',      category:'행정',  priority:'mid',  done:false},
-    {name:'하자 점검 신청',          note:'입주 전 하자보수 점검',    category:'시공',  priority:'high', done:false},
+    {name:'붙박이장 시공 견적',     note:'최소 3개 업체 비교',      category:'시공', priority:'high', done:false},
+    {name:'새집증후군 베이크아웃',  note:'입주 전 2~3일 고온 환기', category:'환경', priority:'high', done:false},
+    {name:'줄눈 시공',              note:'타일 사이 오염 방지',     category:'시공', priority:'high', done:false},
+    {name:'냉장고장 제작/시공',     note:'냉장고 사이즈 확인 후',   category:'시공', priority:'high', done:false},
+    {name:'유리난간 설치 확인',     note:'시공 상태 및 안전 점검',  category:'시공', priority:'mid',  done:false},
+    {name:'인터넷 이전 신청',       note:'KT/SKT/LG 비교',         category:'생활', priority:'mid',  done:false},
+    {name:'가스 개통 신청',         note:'입주일 전 신청 필수',     category:'생활', priority:'high', done:false},
+    {name:'이사 업체 선정',         note:'사다리차 포함 여부 확인', category:'이사', priority:'high', done:false},
+    {name:'각종 주소 변경',         note:'은행, 보험, 병원 등',     category:'행정', priority:'mid',  done:false},
+    {name:'하자 점검 신청',         note:'입주 전 하자보수 점검',   category:'시공', priority:'high', done:false},
   ];
 }
 
 // ════════════════════════════════════════
-//  MIGRATION: old format → new format
+//  MIGRATION
 // ════════════════════════════════════════
 function migrateFromOld(old) {
   const items = [];
@@ -549,37 +637,24 @@ function migrateFromOld(old) {
   });
   (old.payments || []).forEach(p => {
     const pName = (p.desc||'').replace(/\s/g,'');
-    const match = items.find(i => {
-      const n = i.name.replace(/\s/g,'');
-      return n.includes(pName.slice(0,4)) || pName.includes(n.slice(0,4));
-    });
+    const match = items.find(i => { const n=i.name.replace(/\s/g,''); return n.includes(pName.slice(0,4))||pName.includes(n.slice(0,4)); });
     if (match && !match.dueDate) {
       match.dueDate = p.date||'';
       if (p.status==='done' && match.status!=='paid') match.status='paid';
       else if (p.status==='upcoming' && match.status==='pending') match.status='due';
     } else if (!match && p.desc) {
-      items.push({name:p.desc, category:'분양가', amount:Number(p.amount||0),
-        status:p.status==='done'?'paid':p.status==='upcoming'?'due':'pending',
-        dueDate:p.date||'', memo:''});
+      items.push({name:p.desc, category:'분양가', amount:Number(p.amount||0), status:p.status==='done'?'paid':p.status==='upcoming'?'due':'pending', dueDate:p.date||'', memo:''});
     }
   });
   return items;
 }
 
-/**
- * MIGRATION: merge standalone 계약금/중도금/잔금 items in category '분양가'
- * into installments of the parent '분양가' item.
- * This fixes the double-counting bug.
- */
 function consolidateInstallments(items) {
   const childPattern = /계약금|중도금|잔금/;
   const parentIdx = items.findIndex(i => i.category==='분양가' && i.name==='분양가' && !(i.installments && i.installments.length));
   if (parentIdx === -1) return false;
-
   const parent = items[parentIdx];
-  const childIndices = [];
-  const insts = [];
-
+  const childIndices = [], insts = [];
   items.forEach((item, idx) => {
     if (idx === parentIdx) return;
     if (item.category === '분양가' && childPattern.test(item.name)) {
@@ -590,13 +665,9 @@ function consolidateInstallments(items) {
       childIndices.push(idx);
     }
   });
-
   if (!insts.length) return false;
-
   insts.sort((a,b) => (a.date||'').localeCompare(b.date||''));
   parent.installments = insts;
-
-  // Remove children in reverse order
   for (let i = childIndices.length - 1; i >= 0; i--) items.splice(childIndices[i], 1);
   return true;
 }
@@ -610,9 +681,7 @@ async function fetchData() {
     if (doc.exists) {
       data = doc.data();
       let needsSave = false;
-      // Migrate from old format (costs/shops/payments)
       if (!data.items) { data.items = migrateFromOld(data); needsSave = true; }
-      // Consolidate duplicate 분양가 items → installments
       if (consolidateInstallments(data.items)) needsSave = true;
       if (!data.todos) { data.todos = defaultTodos(); needsSave = true; }
       if (!data.moveDate) { data.moveDate = '2026-08-15'; needsSave = true; }
@@ -643,22 +712,6 @@ function saveData() {
 }
 function showSave(type, msg) { const el=document.getElementById('save-status'); el.className=`show ${type}`; el.textContent=msg; }
 function hideSave() { document.getElementById('save-status').className=''; }
-
-// ════════════════════════════════════════
-//  FORMAT HELPERS
-// ════════════════════════════════════════
-function fmt(n) {
-  n = Number(n) || 0;
-  if (n === 0) return '0만원';
-  if (n >= 10000) return (n/10000).toFixed(2).replace(/\.?0+$/,'') + '억';
-  return n.toLocaleString() + '만원';
-}
-function fmtDate(d) {
-  if (!d) return '';
-  const p = d.split('-');
-  return `${p[0]}.${p[1]}.${p[2]}`;
-}
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ════════════════════════════════════════
 //  D-DAY
@@ -692,34 +745,34 @@ function renderKPI() {
   const notDoneCount = items.filter(i => derivedStatus(i) !== 'paid').length;
   const paidPct = total > 0 ? Math.round(paid/total*100) : 0;
 
-  document.getElementById('kpi-total').textContent    = fmt(total);
-  document.getElementById('kpi-paid').textContent     = fmt(paid);
-  document.getElementById('kpi-remain').textContent   = fmt(total - paid);
+  // KPI 카드: fmtFull (전체 금액 표시)
+  document.getElementById('kpi-total').textContent    = fmtFull(total);
+  document.getElementById('kpi-paid').textContent     = fmtFull(paid);
+  document.getElementById('kpi-remain').textContent   = fmtFull(total - paid);
   document.getElementById('kpi-paid-pct').textContent = paidPct + '%';
   document.getElementById('pb-paid').style.width      = paidPct + '%';
-  document.getElementById('kpi-due-count').textContent = dueCount + '건';
-  document.getElementById('kpi-due-amt').textContent  = '예정 합계: ' + fmt(dueTotal);
-  document.getElementById('kpi-pending-count').textContent = notDoneCount + '건';
+  document.getElementById('kpi-due-count').textContent = dueCount.toLocaleString('ko-KR') + '건';
+  document.getElementById('kpi-due-amt').textContent  = '예정 합계: ' + fmtFull(dueTotal);
+  document.getElementById('kpi-pending-count').textContent = notDoneCount.toLocaleString('ko-KR') + '건';
 
   const todos   = data.todos || [];
   const doneTd  = todos.filter(t=>t.done).length;
   const todoPct = todos.length > 0 ? Math.round(doneTd/todos.length*100) : 0;
   document.getElementById('kpi-todo').textContent         = todoPct + '%';
-  document.getElementById('kpi-todo-detail').textContent  = `${doneTd} / ${todos.length}`;
+  document.getElementById('kpi-todo-detail').textContent  = `${doneTd.toLocaleString('ko-KR')} / ${todos.length.toLocaleString('ko-KR')}`;
   document.getElementById('pb-todo').style.width          = todoPct + '%';
   document.getElementById('todo-overall-pct').textContent = todoPct + '%';
   document.getElementById('pb-todo-overall').style.width  = todoPct + '%';
 }
 
 // ════════════════════════════════════════
-//  COST TABLE (derived, grouped by category)
+//  COST TABLE
 // ════════════════════════════════════════
 function renderCostTable() {
   const tbody = document.getElementById('cost-tbody');
   tbody.innerHTML = '';
   const items = data.items || [];
 
-  // Group
   const groups = {};
   items.forEach((item, i) => {
     const cat = item.category || '기타';
@@ -736,7 +789,6 @@ function renderCostTable() {
     grandTotal += catTotal;
     const color = CAT_COLOR[cat] || '#8b92a5';
 
-    // Category header
     const htr = document.createElement('tr');
     htr.className = 'cost-cat-header';
     htr.innerHTML = `<td colspan="2"><span style="color:${color};font-weight:700">▸ ${cat}</span></td><td style="text-align:right;color:${color};font-weight:700">${fmt(catTotal)}</td>`;
@@ -749,14 +801,12 @@ function renderCostTable() {
       const effAmt  = effectiveAmt(item);
 
       if (hasInst) {
-        // Parent row (click to open modal)
         const ptr = document.createElement('tr');
         ptr.className = 'cost-parent-row clickable';
         ptr.innerHTML = `<td style="padding-left:20px;font-weight:600;color:#1a1a2e">${item.name} <span style="font-size:0.72rem;color:#8b92a5">(${item.installments.length}회 분할)</span></td><td style="text-align:right;font-size:0.82rem;color:#8b92a5">${fmt(item.amount)} 기준</td><td style="text-align:center">${badge}</td>`;
         ptr.onclick = () => openItemModal(item._i);
         tbody.appendChild(ptr);
 
-        // Installment sub-rows
         item.installments.forEach(inst => {
           const instBadge = inst.status==='paid' ? '<span class="badge-paid">완료</span>'
                           : inst.status==='due'  ? '<span class="badge-due">예정</span>'
@@ -768,7 +818,6 @@ function renderCostTable() {
           tbody.appendChild(itr);
         });
       } else {
-        // Simple row
         const tr = document.createElement('tr');
         tr.className = 'clickable';
         tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}${item.memo?` <span style="font-size:0.75rem;color:#b0b7c3">${item.memo}</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(effAmt)}</td><td style="text-align:center">${badge}</td>`;
@@ -786,14 +835,13 @@ function renderCostTable() {
 }
 
 // ════════════════════════════════════════
-//  TIMELINE (derived — same-date grouped)
+//  TIMELINE
 // ════════════════════════════════════════
 function renderTimeline() {
   const tl    = document.getElementById('payment-timeline');
   const empty = document.getElementById('timeline-empty');
   tl.innerHTML = '';
 
-  // Collect all entries (installments or simple items with date)
   const entries = [];
   (data.items || []).forEach((item, idx) => {
     if (item.installments && item.installments.length > 0) {
@@ -808,7 +856,6 @@ function renderTimeline() {
   if (!entries.length) { tl.style.display='none'; empty.style.display='block'; return; }
   tl.style.display='block'; empty.style.display='none';
 
-  // Group by date
   const byDate = {};
   entries.forEach(e => { if (!byDate[e.date]) byDate[e.date]=[]; byDate[e.date].push(e); });
 
@@ -849,7 +896,7 @@ function renderTimeline() {
 }
 
 // ════════════════════════════════════════
-//  ITEM CARDS (master list)
+//  ITEM CARDS
 // ════════════════════════════════════════
 let activeItemTab = '전체';
 function renderItems() {
@@ -880,7 +927,6 @@ function renderItems() {
     const effAmt  = effectiveAmt(item);
     const pAmt    = paidAmt(item);
 
-    // Status badge (click → cycle for non-installment; open modal for installment)
     const badgeClick = hasInst
       ? `onclick="openItemModal(${idx})"`
       : `onclick="cycleStatus(${idx},event)"`;
@@ -891,7 +937,6 @@ function renderItems() {
       const total = item.installments.length;
       const paid  = item.installments.filter(i=>i.status==='paid').length;
       const pct   = total > 0 ? Math.round(paid/total*100) : 0;
-      // Next unpaid installment
       const next  = item.installments.find(i=>i.status!=='paid');
       const dots  = item.installments.map(i => `<span class="inst-dot ${i.status}"></span>`).join('');
       instHTML = `
@@ -989,48 +1034,55 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 
 // ── Installment row helpers ──
 function onTotalAmtChange() {
-  // Recalc installment amounts when total changes
   recalcInstAmts();
   updateInstTotal();
 }
 
 function recalcInstAmts() {
-  const total = Number(document.getElementById('item-amount').value || 0);
+  const total = parseAmt(document.getElementById('item-amount').value);
   if (total <= 0) return;
   document.querySelectorAll('.inst-row').forEach(row => {
     const pctInput = row.querySelector('[data-f="pct"]');
     const amtInput = row.querySelector('[data-f="amount"]');
     const pct = Number(pctInput.value || 0);
-    if (pct > 0) amtInput.value = Math.round(total * pct / 100);
+    if (pct > 0) {
+      const computed = Math.round(total * pct / 100 * 10) / 10;
+      amtInput.value = fmtInput(computed);
+    }
   });
   updateInstTotal();
 }
 
 function onInstPct(el) {
-  const total = Number(document.getElementById('item-amount').value || 0);
+  const total = parseAmt(document.getElementById('item-amount').value);
   const row = el.closest('.inst-row');
   const amtInput = row.querySelector('[data-f="amount"]');
-  if (total > 0) amtInput.value = Math.round(total * Number(el.value||0) / 100);
+  if (total > 0) {
+    const computed = Math.round(total * Number(el.value||0) / 100 * 10) / 10;
+    amtInput.value = fmtInput(computed);
+  }
   updateInstTotal();
 }
 
 function onInstAmt(el) {
-  const total = Number(document.getElementById('item-amount').value || 0);
+  const total = parseAmt(document.getElementById('item-amount').value);
   const row = el.closest('.inst-row');
   const pctInput = row.querySelector('[data-f="pct"]');
-  if (total > 0) pctInput.value = (Number(el.value||0) / total * 100).toFixed(1);
+  const v = parseAmt(el.value);
+  if (total > 0) pctInput.value = (v / total * 100).toFixed(1);
   updateInstTotal();
 }
 
 function updateInstTotal() {
   let sum = 0;
-  document.querySelectorAll('.inst-row [data-f="amount"]').forEach(el => sum += Number(el.value||0));
+  document.querySelectorAll('.inst-row [data-f="amount"]').forEach(el => sum += parseAmt(el.value));
   const label = document.getElementById('inst-total-label');
   if (label) label.textContent = sum > 0 ? `분할 합계: ${fmt(sum)}` : '';
 }
 
 function addInstRow(inst) {
   const d = inst || { title:'', pct:'', amount:'', date:'', status:'pending' };
+  const amtDisplay = d.amount ? fmtInput(d.amount) : '';
   const div = document.createElement('div');
   div.className = 'inst-row';
   div.innerHTML = `
@@ -1045,7 +1097,9 @@ function addInstRow(inst) {
       </div>
       <div>
         <span class="inst-row-label">금액 (만원)</span>
-        <input class="form-input inst-small" type="number" placeholder="만원" value="${d.amount}" data-f="amount" oninput="onInstAmt(this)">
+        <input class="form-input inst-small" type="text" inputmode="decimal" placeholder="만원"
+          value="${amtDisplay}" data-f="amount"
+          onfocus="amtFocus(this)" onblur="amtBlur(this)" oninput="onInstAmt(this)">
       </div>
       <div>
         <span class="inst-row-label">납부일</span>
@@ -1066,17 +1120,16 @@ function addInstRow(inst) {
 
 function toggleInstSection() {
   const checked = document.getElementById('use-inst').checked;
-  document.getElementById('inst-area').style.display    = checked ? 'block' : 'none';
+  document.getElementById('inst-area').style.display     = checked ? 'block' : 'none';
   document.getElementById('simple-fields').style.display = checked ? 'none'  : 'block';
-  document.getElementById('simple-status-field') && (document.getElementById('simple-status-field').style.display = checked ? 'none' : 'block');
   document.getElementById('inst-ref-label').textContent  = checked ? '— 분할 납부 기준 총액' : '';
 }
 
 function getInstallments() {
   return Array.from(document.querySelectorAll('.inst-row')).map(row => ({
     title:  row.querySelector('[data-f="title"]').value.trim(),
-    pct:    Number(row.querySelector('[data-f="pct"]').value   || 0),
-    amount: Number(row.querySelector('[data-f="amount"]').value || 0),
+    pct:    Number(row.querySelector('[data-f="pct"]').value || 0),
+    amount: parseAmt(row.querySelector('[data-f="amount"]').value),
     date:   row.querySelector('[data-f="date"]').value,
     status: row.querySelector('[data-f="status"]').value
   })).filter(i => i.title);
@@ -1093,7 +1146,7 @@ function openItemModal(idx) {
     const it = data.items[idx];
     document.getElementById('item-name').value     = it.name;
     document.getElementById('item-category').value = it.category || '기타';
-    document.getElementById('item-amount').value   = it.amount || 0;
+    document.getElementById('item-amount').value   = fmtInput(it.amount || 0);
     document.getElementById('item-duedate').value  = it.dueDate || '';
     document.getElementById('item-status').value   = it.status || 'pending';
     document.getElementById('item-memo').value     = it.memo || '';
@@ -1121,7 +1174,7 @@ function saveItem() {
   const obj = {
     name:     document.getElementById('item-name').value,
     category: document.getElementById('item-category').value,
-    amount:   Number(document.getElementById('item-amount').value || 0),
+    amount:   parseAmt(document.getElementById('item-amount').value),
     memo:     document.getElementById('item-memo').value
   };
 
