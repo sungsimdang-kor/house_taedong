@@ -167,6 +167,24 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 .inst-small { font-size:0.82rem; }
 .inst-section { border-top:1.5px solid #e5e7ef; margin-top:14px; padding-top:14px; }
 
+/* Loan section */
+.loan-card { border:1.5px solid #e5e7ef; border-radius:14px; padding:16px 18px; margin-bottom:12px; position:relative; transition:all 0.15s; cursor:pointer; }
+.loan-card:hover { border-color:#14b8a6; box-shadow:0 2px 12px rgba(20,184,166,0.1); }
+.loan-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.loan-card-name { font-size:0.95rem; font-weight:700; color:#1a1a2e; }
+.loan-card-type { font-size:0.72rem; font-weight:700; padding:2px 9px; border-radius:99px; }
+.loan-type-equal-total  { background:#e0f2fe; color:#0891b2; }
+.loan-type-equal-princ  { background:#f0fdf4; color:#16a34a; }
+.loan-type-bullet       { background:#fdf4ff; color:#9333ea; }
+.loan-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.loan-stat { background:#f7f8fc; border-radius:8px; padding:8px 12px; }
+.loan-stat-label { font-size:0.68rem; font-weight:600; color:#8b92a5; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+.loan-stat-value { font-size:0.9rem; font-weight:700; color:#1a1a2e; }
+.loan-monthly-box { background:linear-gradient(135deg,#0d9488,#14b8a6); border-radius:10px; padding:12px 16px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; }
+.loan-monthly-label { font-size:0.8rem; color:rgba(255,255,255,0.8); }
+.loan-monthly-value { font-size:1.05rem; font-weight:800; color:white; }
+.loan-grace-note { font-size:0.75rem; color:rgba(255,255,255,0.75); margin-top:2px; }
+
 /* Scroll highlight animation */
 @keyframes sectionPulse { 0%,100%{box-shadow:0 2px 12px rgba(0,0,0,0.07)} 50%{box-shadow:0 0 0 3px #6366f1,0 6px 24px rgba(99,102,241,0.2)} }
 .section-highlight { animation:sectionPulse 0.8s ease; }
@@ -187,7 +205,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 <header>
   <div>
     <h1>🏠 하우스 태동 입주 준비 대시보드</h1>
-    <div class="subtitle">e편한세상 검단 웰카운티 104동 0704호</div>
+    <div class="subtitle">e편한세상 검단 웰카운티 2504동 0704호</div>
   </div>
   <div class="dday-badge" id="dday-badge">-</div>
 </header>
@@ -246,6 +264,24 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
     </div>
   </div>
 
+  <!-- 대출 KPI -->
+  <div class="grid-2 section-gap">
+    <div class="card card-kpi" onclick="scrollToSection('section-loans')">
+      <div class="card-accent" style="background:#14b8a6"></div>
+      <div class="card-title">총 대출 잔액</div>
+      <div class="card-value" id="kpi-loan-total">-</div>
+      <div class="card-sub" id="kpi-loan-count">대출 없음</div>
+      <div class="card-link-hint">↓ 대출 관리</div>
+    </div>
+    <div class="card card-kpi" onclick="scrollToSection('section-loans')">
+      <div class="card-accent" style="background:#0d9488"></div>
+      <div class="card-title">월 예상 상환액 합계</div>
+      <div class="card-value" id="kpi-loan-monthly">-</div>
+      <div class="card-sub">현재 시점 기준</div>
+      <div class="card-link-hint">↓ 대출 관리</div>
+    </div>
+  </div>
+
   <!-- 비용 상세 + 납부일정 -->
   <div class="grid-2 section-gap">
     <div class="card" id="section-cost" style="overflow:auto">
@@ -296,6 +332,19 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
     </div>
   </div>
 
+  <!-- 대출 관리 -->
+  <div class="card section-gap" id="section-loans">
+    <div class="section-header">
+      <div class="section-title"><div class="section-icon" style="background:#ccfbf1">🏦</div>대출 관리</div>
+      <button class="btn-add" onclick="openLoanModal(null)">+ 대출 추가</button>
+    </div>
+    <div id="loan-list">
+      <div style="text-align:center;color:#8b92a5;font-size:0.84rem;padding:28px 0" id="loan-empty">
+        등록된 대출이 없습니다.<br><small>+ 대출 추가 버튼으로 주택담보대출, 전세대출 등을 등록하세요.</small>
+      </div>
+    </div>
+  </div>
+
   <!-- 구매/결제/납부 메인 리스트 -->
   <div class="card section-gap" id="section-items">
     <div class="section-header">
@@ -339,10 +388,10 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">전체 금액 (만원) <span id="inst-ref-label" style="font-size:0.75rem;font-weight:400;color:#8b92a5"></span></label>
-      <input class="form-input" id="item-amount" type="text" inputmode="decimal"
-        placeholder="예: 55,650"
-        onfocus="amtFocus(this)" onblur="amtBlur(this)" oninput="onTotalAmtChange()">
+      <label class="form-label">전체 금액 (원) <span id="inst-ref-label" style="font-size:0.75rem;font-weight:400;color:#8b92a5"></span></label>
+      <input class="form-input" id="item-amount" type="text" inputmode="numeric"
+        placeholder="예: 556,500,000"
+        oninput="onWonInput(this);onTotalAmtChange()">
     </div>
 
     <!-- Simple (no installments) -->
@@ -361,6 +410,10 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
       </div>
     </div>
 
+    <div class="form-group">
+      <label class="form-label">구매처 <span style="font-weight:400;color:#b0b7c3">(선택)</span></label>
+      <input class="form-input" id="item-vendor" placeholder="예: 삼성스토어, 현대백화점, 쿠팡">
+    </div>
     <div class="form-group">
       <label class="form-label">메모</label>
       <input class="form-input" id="item-memo" placeholder="메모">
@@ -415,6 +468,101 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
       <button class="btn btn-secondary" onclick="closeModal('todo-modal')">취소</button>
       <button class="btn btn-danger" id="todo-delete-btn" onclick="deleteTodo()" style="display:none">삭제</button>
       <button class="btn btn-primary" onclick="saveTodo()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Loan Modal ── -->
+<div class="modal-overlay" id="loan-modal">
+  <div class="modal">
+    <div class="modal-title">🏦 대출 추가 / 편집</div>
+    <input type="hidden" id="loan-idx">
+
+    <div class="form-group">
+      <label class="form-label">대출명</label>
+      <input class="form-input" id="loan-name" placeholder="예: 주택담보대출, 디딤돌대출, 전세대출">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">상환 방식</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px" id="loan-type-btns">
+        <div class="loan-type-btn" data-type="equal-total" onclick="selectLoanType('equal-total')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
+          <div style="font-size:1.1rem;margin-bottom:4px">⚖️</div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">원리금균등</div>
+          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">매월 동일 금액</div>
+        </div>
+        <div class="loan-type-btn" data-type="equal-princ" onclick="selectLoanType('equal-princ')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
+          <div style="font-size:1.1rem;margin-bottom:4px">📉</div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">원금균등</div>
+          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">매월 이자 감소</div>
+        </div>
+        <div class="loan-type-btn" data-type="bullet" onclick="selectLoanType('bullet')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
+          <div style="font-size:1.1rem;margin-bottom:4px">💸</div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">만기일시</div>
+          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">이자만 납부</div>
+        </div>
+      </div>
+      <input type="hidden" id="loan-type" value="equal-total">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">대출 금액 (원)</label>
+      <input class="form-input" id="loan-amount" type="text" inputmode="numeric"
+        placeholder="예: 300,000,000"
+        oninput="onWonInput(this);calcLoanPreview()">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">연 금리 (%)</label>
+        <input class="form-input" id="loan-rate" type="number" step="0.01" placeholder="예: 3.5"
+          oninput="calcLoanPreview()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">대출 실행일</label>
+        <input class="form-input" id="loan-start" type="date" onchange="calcLoanPreview()">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">거치기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 이자만 납부</span></label>
+        <input class="form-input" id="loan-grace" type="number" min="0" placeholder="0" value="0"
+          oninput="calcLoanPreview()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">대출기간 (개월)</label>
+        <input class="form-input" id="loan-period" type="number" min="1" placeholder="예: 360 (30년)"
+          oninput="calcLoanPreview()">
+      </div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div id="loan-preview" style="display:none;margin-top:16px;background:linear-gradient(135deg,#0d9488,#14b8a6);border-radius:12px;padding:14px 16px;color:white">
+      <div style="font-size:0.78rem;opacity:0.8;margin-bottom:8px">📊 월 예상 상환액</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:0.72rem;opacity:0.75" id="preview-grace-label">거치기간 중</div>
+          <div style="font-size:1.1rem;font-weight:800" id="preview-grace-amt">-</div>
+          <div style="font-size:0.7rem;opacity:0.7">이자만 납부</div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;opacity:0.75" id="preview-repay-label">상환기간 중</div>
+          <div style="font-size:1.1rem;font-weight:800" id="preview-repay-amt">-</div>
+          <div style="font-size:0.7rem;opacity:0.7" id="preview-repay-note"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.25);font-size:0.78rem;opacity:0.85" id="preview-summary"></div>
+    </div>
+
+    <div class="form-group" style="margin-top:14px">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="loan-memo" placeholder="은행명, 조건 등">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('loan-modal')">취소</button>
+      <button class="btn btn-danger" id="loan-delete-btn" onclick="deleteLoan()" style="display:none">삭제</button>
+      <button class="btn btn-primary" onclick="saveLoan()">저장</button>
     </div>
   </div>
 </div>
@@ -503,19 +651,43 @@ function fmtDate(d) {
 /** HTML 이스케이프 */
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-/** 쉼표 제거 후 숫자 파싱 */
+/** 쉼표 제거 후 숫자 파싱 (만원 입력용) */
 function parseAmt(s) {
   return Number(String(s || '').replace(/,/g, '')) || 0;
 }
 
-/** 입력용 포맷 (쉼표, 소수점1자리) */
+/** 쉼표 제거 후 정수 파싱 (원 입력용) */
+function parseWon(s) {
+  return Math.round(Number(String(s || '').replace(/,/g, '')) || 0);
+}
+
+/** 원 단위 입력 포맷 (정수 쉼표) — item-amount 전용 */
+function onWonInput(el) {
+  const sel = el.selectionStart;
+  const oldLen = el.value.length;
+  const raw = el.value.replace(/[^0-9]/g, '');
+  if (!raw) { el.value = ''; return; }
+  const n = parseInt(raw, 10);
+  el.value = n.toLocaleString('ko-KR');
+  const newLen = el.value.length;
+  const newSel = Math.max(0, sel + (newLen - oldLen));
+  el.setSelectionRange(newSel, newSel);
+}
+
+/** 원 → 인풋 표시용 문자열 */
+function fmtWonInput(won) {
+  const n = Math.round(Number(won) || 0);
+  return n > 0 ? n.toLocaleString('ko-KR') : '';
+}
+
+/** 입력용 포맷 (쉼표, 소수점1자리) — 분할납부 금액용 */
 function fmtInput(n) {
   n = Math.round((Number(n) || 0) * 10) / 10;
   if (n === 0) return '';
   return n.toLocaleString('ko-KR', {maximumFractionDigits:1});
 }
 
-/** 금액 input — focus: 쉼표 제거 / blur: 쉼표 적용 */
+/** 분할납부 금액 input focus/blur */
 function amtFocus(el) {
   const v = parseAmt(el.value);
   el.value = v > 0 ? String(v) : '';
@@ -684,15 +856,16 @@ async function fetchData() {
       if (!data.items) { data.items = migrateFromOld(data); needsSave = true; }
       if (consolidateInstallments(data.items)) needsSave = true;
       if (!data.todos) { data.todos = defaultTodos(); needsSave = true; }
+      if (!data.loans) { data.loans = []; needsSave = true; }
       if (!data.moveDate) { data.moveDate = '2026-08-15'; needsSave = true; }
       if (needsSave) await DOC_REF.set(data);
     } else {
-      data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos() };
+      data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos(), loans:[] };
       await DOC_REF.set(data);
     }
   } catch(e) {
     console.error('Firestore 오류:', e);
-    data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos() };
+    data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos(), loans:[] };
   }
 }
 
@@ -820,7 +993,8 @@ function renderCostTable() {
       } else {
         const tr = document.createElement('tr');
         tr.className = 'clickable';
-        tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}${item.memo?` <span style="font-size:0.75rem;color:#b0b7c3">${item.memo}</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(effAmt)}</td><td style="text-align:center">${badge}</td>`;
+        const subText = [item.vendor?`🏪 ${item.vendor}`:'', item.memo].filter(Boolean).join(' · ');
+        tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}${subText?` <span style="font-size:0.75rem;color:#b0b7c3">${subText}</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(effAmt)}</td><td style="text-align:center">${badge}</td>`;
         tr.onclick = () => openItemModal(item._i);
         tbody.appendChild(tr);
       }
@@ -956,6 +1130,7 @@ function renderItems() {
       <div class="item-name">${item.name}</div>
       <div class="item-amt">${fmt(effAmt)}${hasInst && item.amount ? ` <span style="font-size:0.72rem;color:#b0b7c3">(기준 ${fmt(item.amount)})</span>` : ''}</div>
       ${!hasInst && item.dueDate ? `<div class="item-date">📅 ${fmtDate(item.dueDate)}</div>` : ''}
+      ${item.vendor ? `<div class="item-memo">🏪 ${esc(item.vendor)}</div>` : ''}
       ${item.memo && !hasInst ? `<div class="item-memo">${esc(item.memo)}</div>` : ''}
       ${instHTML}`;
     card.onclick = e => { if (!e.target.classList.contains('item-badge')) openItemModal(idx); };
@@ -1020,7 +1195,7 @@ function toggleTodo(i, e) {
 //  RENDER ALL
 // ════════════════════════════════════════
 function renderAll() {
-  updateDday(); renderKPI(); renderCostTable(); renderTimeline(); renderTodos(); renderItems();
+  updateDday(); renderKPI(); renderCostTable(); renderTimeline(); renderTodos(); renderItems(); renderLoans();
 }
 
 // ════════════════════════════════════════
@@ -1039,14 +1214,15 @@ function onTotalAmtChange() {
 }
 
 function recalcInstAmts() {
-  const total = parseAmt(document.getElementById('item-amount').value);
-  if (total <= 0) return;
+  // item-amount는 원 단위 → 만원으로 변환
+  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
+  if (totalMan <= 0) return;
   document.querySelectorAll('.inst-row').forEach(row => {
     const pctInput = row.querySelector('[data-f="pct"]');
     const amtInput = row.querySelector('[data-f="amount"]');
     const pct = Number(pctInput.value || 0);
     if (pct > 0) {
-      const computed = Math.round(total * pct / 100 * 10) / 10;
+      const computed = Math.round(totalMan * pct / 100 * 10) / 10;
       amtInput.value = fmtInput(computed);
     }
   });
@@ -1054,22 +1230,22 @@ function recalcInstAmts() {
 }
 
 function onInstPct(el) {
-  const total = parseAmt(document.getElementById('item-amount').value);
+  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
   const row = el.closest('.inst-row');
   const amtInput = row.querySelector('[data-f="amount"]');
-  if (total > 0) {
-    const computed = Math.round(total * Number(el.value||0) / 100 * 10) / 10;
+  if (totalMan > 0) {
+    const computed = Math.round(totalMan * Number(el.value||0) / 100 * 10) / 10;
     amtInput.value = fmtInput(computed);
   }
   updateInstTotal();
 }
 
 function onInstAmt(el) {
-  const total = parseAmt(document.getElementById('item-amount').value);
+  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
   const row = el.closest('.inst-row');
   const pctInput = row.querySelector('[data-f="pct"]');
-  const v = parseAmt(el.value);
-  if (total > 0) pctInput.value = (v / total * 100).toFixed(1);
+  const v = parseAmt(el.value); // 만원 단위
+  if (totalMan > 0) pctInput.value = (v / totalMan * 100).toFixed(1);
   updateInstTotal();
 }
 
@@ -1146,9 +1322,11 @@ function openItemModal(idx) {
     const it = data.items[idx];
     document.getElementById('item-name').value     = it.name;
     document.getElementById('item-category').value = it.category || '기타';
-    document.getElementById('item-amount').value   = fmtInput(it.amount || 0);
+    // 저장값은 만원 → 원 단위로 변환하여 표시
+    document.getElementById('item-amount').value   = fmtWonInput(Math.round((it.amount || 0) * 10000));
     document.getElementById('item-duedate').value  = it.dueDate || '';
     document.getElementById('item-status').value   = it.status || 'pending';
+    document.getElementById('item-vendor').value   = it.vendor || '';
     document.getElementById('item-memo').value     = it.memo || '';
 
     const hasInst = it.installments && it.installments.length > 0;
@@ -1156,7 +1334,7 @@ function openItemModal(idx) {
     toggleInstSection();
     if (hasInst) it.installments.forEach(inst => addInstRow(inst));
   } else {
-    ['item-name','item-amount','item-duedate','item-memo'].forEach(id => document.getElementById(id).value='');
+    ['item-name','item-amount','item-duedate','item-vendor','item-memo'].forEach(id => document.getElementById(id).value='');
     document.getElementById('item-category').value = '기타';
     document.getElementById('item-status').value   = 'pending';
     document.getElementById('use-inst').checked    = false;
@@ -1174,7 +1352,9 @@ function saveItem() {
   const obj = {
     name:     document.getElementById('item-name').value,
     category: document.getElementById('item-category').value,
-    amount:   parseAmt(document.getElementById('item-amount').value),
+    // 입력값은 원 단위 → 만원으로 변환하여 저장
+    amount:   parseWon(document.getElementById('item-amount').value) / 10000,
+    vendor:   document.getElementById('item-vendor').value.trim(),
     memo:     document.getElementById('item-memo').value
   };
 
@@ -1232,6 +1412,292 @@ function saveTodo() {
 function deleteTodo() {
   data.todos.splice(Number(document.getElementById('todo-idx').value), 1);
   saveData(); closeModal('todo-modal'); renderAll();
+}
+
+// ════════════════════════════════════════
+//  LOAN CALCULATIONS
+// ════════════════════════════════════════
+
+/** 대출 계산 결과 반환
+ * @returns { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest }
+ * 금액 단위: 원
+ */
+function calcLoan(loan) {
+  const P = Number(loan.amount) || 0;          // 대출원금 (원)
+  const annualRate = Number(loan.rate) || 0;   // 연 금리 (%)
+  const r = annualRate / 12 / 100;             // 월 금리
+  const totalMonths = Number(loan.period) || 0;// 대출기간 (개월)
+  const graceMonths = Number(loan.grace) || 0; // 거치기간 (개월)
+  const n = totalMonths - graceMonths;         // 실 상환 개월
+
+  if (P <= 0 || annualRate <= 0 || totalMonths <= 0) return null;
+
+  const graceMonthly = Math.round(P * r);      // 거치 중 이자
+
+  let repayMonthly1 = 0, repayMonthlyLast = 0, totalInterest = 0;
+
+  if (loan.type === 'bullet') {
+    // 만기일시: 이자만 납부 내내, 만기에 원금
+    repayMonthly1 = graceMonthly;
+    repayMonthlyLast = graceMonthly;
+    totalInterest = Math.round(graceMonthly * totalMonths);
+  } else if (loan.type === 'equal-total') {
+    // 원리금균등상환
+    if (n <= 0 || r <= 0) {
+      repayMonthly1 = repayMonthlyLast = Math.round(P / Math.max(n,1));
+    } else {
+      const factor = Math.pow(1 + r, n);
+      repayMonthly1 = repayMonthlyLast = Math.round(P * r * factor / (factor - 1));
+    }
+    totalInterest = Math.round(graceMonthly * graceMonths + repayMonthly1 * n - P);
+  } else {
+    // 원금균등상환: 원금 1/n + 이자(잔액 × r)
+    const principalPayment = P / n;
+    repayMonthly1    = Math.round(principalPayment + P * r);
+    repayMonthlyLast = Math.round(principalPayment + principalPayment * r);
+    // 총 이자 = 거치이자 + 상환이자 합산
+    let interestSum = graceMonthly * graceMonths;
+    for (let k = 0; k < n; k++) {
+      interestSum += (P - k * principalPayment) * r;
+    }
+    totalInterest = Math.round(interestSum);
+  }
+
+  return { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest, n, graceMonths };
+}
+
+/** 현재 시점 기준 이번 달 상환액 */
+function currentMonthlyPayment(loan) {
+  const res = calcLoan(loan);
+  if (!res) return 0;
+  if (!loan.startDate) return res.repayMonthly1;
+  const today = new Date();
+  const start = new Date(loan.startDate);
+  const elapsedMonths = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+  if (elapsedMonths < 0) return res.graceMonthly;
+  if (elapsedMonths < res.graceMonths) return res.graceMonthly;
+  const repayElapsed = elapsedMonths - res.graceMonths;
+  if (repayElapsed >= res.n) return 0; // 상환 완료
+  if (loan.type === 'equal-princ') {
+    const P = Number(loan.amount) || 0;
+    const r = Number(loan.rate) / 12 / 100;
+    const principalPayment = P / res.n;
+    return Math.round(principalPayment + (P - repayElapsed * principalPayment) * r);
+  }
+  return res.repayMonthly1;
+}
+
+/** 원 단위 → 한국어 금액 문자열 (대출 표시용) */
+function fmtWon(won) {
+  won = Math.round(Number(won) || 0);
+  if (won === 0) return '0원';
+  if (won >= 100000000) {
+    const eok = Math.floor(won / 100000000);
+    const man = Math.round((won % 100000000) / 10000);
+    if (man > 0) return `${eok.toLocaleString('ko-KR')}억 ${man.toLocaleString('ko-KR')}만원`;
+    return `${eok.toLocaleString('ko-KR')}억원`;
+  }
+  if (won >= 10000) {
+    const man = Math.floor(won / 10000);
+    const rem = won % 10000;
+    if (rem > 0) return `${man.toLocaleString('ko-KR')}만 ${rem.toLocaleString('ko-KR')}원`;
+    return `${man.toLocaleString('ko-KR')}만원`;
+  }
+  return won.toLocaleString('ko-KR') + '원';
+}
+
+const LOAN_TYPE_LABEL = { 'equal-total':'원리금균등', 'equal-princ':'원금균등', 'bullet':'만기일시' };
+const LOAN_TYPE_CLS   = { 'equal-total':'loan-type-equal-total', 'equal-princ':'loan-type-equal-princ', 'bullet':'loan-type-bullet' };
+
+// ════════════════════════════════════════
+//  RENDER LOANS
+// ════════════════════════════════════════
+function renderLoans() {
+  const loans = data.loans || [];
+  const listEl = document.getElementById('loan-list');
+  const emptyEl = document.getElementById('loan-empty');
+
+  // KPI
+  const totalAmt = loans.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const totalMonthly = loans.reduce((s, l) => s + currentMonthlyPayment(l), 0);
+  document.getElementById('kpi-loan-total').textContent    = fmtWon(totalAmt) || '0원';
+  document.getElementById('kpi-loan-monthly').textContent  = fmtWon(totalMonthly) || '0원';
+  document.getElementById('kpi-loan-count').textContent    = loans.length > 0 ? `대출 ${loans.length}건` : '대출 없음';
+
+  // 목록 초기화 (empty 제외)
+  Array.from(listEl.children).forEach(el => { if (el.id !== 'loan-empty') el.remove(); });
+
+  if (loans.length === 0) { emptyEl.style.display='block'; return; }
+  emptyEl.style.display = 'none';
+
+  loans.forEach((loan, idx) => {
+    const res = calcLoan(loan);
+    const typeCls   = LOAN_TYPE_CLS[loan.type]   || LOAN_TYPE_CLS['equal-total'];
+    const typeLabel = LOAN_TYPE_LABEL[loan.type] || '원리금균등';
+    const monthlyNow = currentMonthlyPayment(loan);
+
+    let repayDesc = '-';
+    let repayNote = '';
+    if (res) {
+      if (loan.type === 'equal-total') {
+        repayDesc = fmtWon(res.repayMonthly1) + '/월';
+        repayNote = '고정';
+      } else if (loan.type === 'equal-princ') {
+        repayDesc = fmtWon(res.repayMonthly1) + '/월';
+        repayNote = `→ ${fmtWon(res.repayMonthlyLast)}/월 (감소)`;
+      } else {
+        repayDesc = fmtWon(res.repayMonthly1) + '/월';
+        repayNote = '만기에 원금 일시상환';
+      }
+    }
+
+    const card = document.createElement('div');
+    card.className = 'loan-card';
+    card.innerHTML = `
+      <div class="loan-card-header">
+        <div>
+          <div class="loan-card-name">${esc(loan.name || '대출')}</div>
+          ${loan.memo ? `<div style="font-size:0.75rem;color:#8b92a5;margin-top:2px">${esc(loan.memo)}</div>` : ''}
+        </div>
+        <span class="loan-card-type ${typeCls}">${typeLabel}</span>
+      </div>
+      <div class="loan-grid">
+        <div class="loan-stat">
+          <div class="loan-stat-label">대출금액</div>
+          <div class="loan-stat-value">${fmtWon(loan.amount)}</div>
+        </div>
+        <div class="loan-stat">
+          <div class="loan-stat-label">연 금리</div>
+          <div class="loan-stat-value">${loan.rate || 0}%</div>
+        </div>
+        <div class="loan-stat">
+          <div class="loan-stat-label">기간</div>
+          <div class="loan-stat-value">${Math.floor((loan.period||0)/12)}년 ${(loan.period||0)%12?((loan.period||0)%12)+'개월':''}</div>
+        </div>
+        <div class="loan-stat">
+          <div class="loan-stat-label">실행일</div>
+          <div class="loan-stat-value">${loan.startDate ? fmtDate(loan.startDate) : '-'}</div>
+        </div>
+        <div class="loan-stat">
+          <div class="loan-stat-label">거치기간</div>
+          <div class="loan-stat-value">${loan.grace ? loan.grace + '개월' : '없음'}</div>
+        </div>
+        <div class="loan-stat">
+          <div class="loan-stat-label">총 예상 이자</div>
+          <div class="loan-stat-value" style="color:#f97316">${res ? fmtWon(res.totalInterest) : '-'}</div>
+        </div>
+      </div>
+      <div class="loan-monthly-box">
+        <div>
+          <div class="loan-monthly-label">현재 월 상환액</div>
+          <div class="loan-monthly-value">${fmtWon(monthlyNow)}/월</div>
+          ${res && res.graceMonths > 0 ? `<div class="loan-grace-note">거치 ${res.graceMonths}개월 후 → ${repayDesc}</div>` : `<div class="loan-grace-note">${repayNote}</div>`}
+        </div>
+        <div style="text-align:right">
+          ${res && loan.type === 'equal-princ' ? `<div class="loan-grace-note">초회 ${fmtWon(res.repayMonthly1)}/월</div><div class="loan-grace-note">말회 ${fmtWon(res.repayMonthlyLast)}/월</div>` : ''}
+        </div>
+      </div>`;
+    card.onclick = () => openLoanModal(idx);
+    listEl.appendChild(card);
+  });
+}
+
+// ════════════════════════════════════════
+//  LOAN MODAL
+// ════════════════════════════════════════
+function selectLoanType(type) {
+  document.getElementById('loan-type').value = type;
+  document.querySelectorAll('.loan-type-btn').forEach(btn => {
+    const selected = btn.dataset.type === type;
+    btn.style.border = selected ? '2px solid #14b8a6' : '2px solid #e5e7ef';
+    btn.style.background = selected ? '#f0fdfa' : '';
+  });
+  calcLoanPreview();
+}
+
+function calcLoanPreview() {
+  const loan = {
+    amount:    parseWon(document.getElementById('loan-amount').value),
+    rate:      Number(document.getElementById('loan-rate').value) || 0,
+    period:    Number(document.getElementById('loan-period').value) || 0,
+    grace:     Number(document.getElementById('loan-grace').value) || 0,
+    type:      document.getElementById('loan-type').value,
+    startDate: document.getElementById('loan-start').value
+  };
+  const preview = document.getElementById('loan-preview');
+  const res = calcLoan(loan);
+  if (!res) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+
+  const graceLabel = loan.grace > 0 ? `거치기간 중 (${loan.grace}개월)` : '거치기간 없음';
+  const repayN = loan.period - loan.grace;
+  const repayLabel = `상환기간 (${repayN}개월)`;
+
+  document.getElementById('preview-grace-label').textContent  = graceLabel;
+  document.getElementById('preview-grace-amt').textContent    = loan.grace > 0 ? fmtWon(res.graceMonthly) + '/월' : '–';
+  document.getElementById('preview-repay-label').textContent  = repayLabel;
+
+  if (loan.type === 'equal-total') {
+    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
+    document.getElementById('preview-repay-note').textContent = '고정 금액';
+  } else if (loan.type === 'equal-princ') {
+    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
+    document.getElementById('preview-repay-note').textContent = `→ ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
+  } else {
+    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
+    document.getElementById('preview-repay-note').textContent = '이자만, 만기에 원금 상환';
+  }
+  document.getElementById('preview-summary').textContent =
+    `총 납입 예상 이자: ${fmtWon(res.totalInterest)}  |  원금 + 이자 합계: ${fmtWon(loan.amount + res.totalInterest)}`;
+}
+
+function openLoanModal(idx) {
+  const isNew = idx === null;
+  document.getElementById('loan-idx').value = isNew ? '' : idx;
+  document.getElementById('loan-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
+  document.getElementById('loan-preview').style.display = 'none';
+
+  if (!isNew) {
+    const l = data.loans[idx];
+    document.getElementById('loan-name').value   = l.name || '';
+    document.getElementById('loan-amount').value = fmtWonInput(l.amount || 0);
+    document.getElementById('loan-rate').value   = l.rate || '';
+    document.getElementById('loan-period').value = l.period || '';
+    document.getElementById('loan-grace').value  = l.grace || 0;
+    document.getElementById('loan-start').value  = l.startDate || '';
+    document.getElementById('loan-memo').value   = l.memo || '';
+    selectLoanType(l.type || 'equal-total');
+    calcLoanPreview();
+  } else {
+    ['loan-name','loan-amount','loan-rate','loan-period','loan-memo'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('loan-grace').value = 0;
+    document.getElementById('loan-start').value = '';
+    selectLoanType('equal-total');
+  }
+  openModal('loan-modal');
+}
+
+function saveLoan() {
+  const idx = document.getElementById('loan-idx').value;
+  const obj = {
+    name:      document.getElementById('loan-name').value.trim(),
+    type:      document.getElementById('loan-type').value,
+    amount:    parseWon(document.getElementById('loan-amount').value),
+    rate:      Number(document.getElementById('loan-rate').value) || 0,
+    period:    Number(document.getElementById('loan-period').value) || 0,
+    grace:     Number(document.getElementById('loan-grace').value) || 0,
+    startDate: document.getElementById('loan-start').value,
+    memo:      document.getElementById('loan-memo').value
+  };
+  if (!data.loans) data.loans = [];
+  if (idx === '') data.loans.push(obj);
+  else data.loans[Number(idx)] = obj;
+  saveData(); closeModal('loan-modal'); renderAll();
+}
+
+function deleteLoan() {
+  data.loans.splice(Number(document.getElementById('loan-idx').value), 1);
+  saveData(); closeModal('loan-modal'); renderAll();
 }
 
 // ════════════════════════════════════════
