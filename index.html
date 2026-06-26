@@ -146,7 +146,7 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
 .form-input { width:100%; border:1.5px solid #e5e7ef; border-radius:10px; padding:9px 12px; font-size:0.88rem; outline:none; font-family:inherit; transition:border-color 0.15s; }
 .form-input:focus { border-color:#6366f1; }
 .btn-row { display:flex; gap:10px; margin-top:20px; }
-.btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.15s; font-family:inherit; display:flex; align-items:center; justify-content:center; text-align:center; }
 .btn-primary   { background:#6366f1; color:white; }
 .btn-primary:hover { background:#4f46e5; }
 .btn-secondary { background:#f0f2f5; color:#8b92a5; }
@@ -525,12 +525,12 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
       <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">거치기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 이자만 납부</span></label>
+        <label class="form-label">거치기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 이자만 납부 기간</span></label>
         <input class="form-input" id="loan-grace" type="number" min="0" placeholder="0" value="0"
           oninput="calcLoanPreview()">
       </div>
       <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">대출기간 (개월)</label>
+        <label class="form-label">상환기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 거치 후 원금 분할기간</span></label>
         <input class="form-input" id="loan-period" type="number" min="1" placeholder="예: 360 (30년)"
           oninput="calcLoanPreview()">
       </div>
@@ -1418,71 +1418,88 @@ function deleteTodo() {
 //  LOAN CALCULATIONS
 // ════════════════════════════════════════
 
-/** 대출 계산 결과 반환
- * @returns { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest }
- * 금액 단위: 원
+/**
+ * 대출 계산 결과 반환 (원 단위)
+ *
+ * ■ 거치기간(거치) 개념
+ *   - 거치기간 동안: 원금은 갚지 않고 이자(P × r)만 납부
+ *   - 거치 종료 후 : 상환기간(period) 동안 원금+이자 분할상환
+ *   - 즉 n = loan.period (거치기간과 무관하게 고정)
+ *   - 상환기간 중 월 납입액은 거치 유무와 관계없이 동일
+ *
+ * @returns { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest, n, graceMonths }
  */
 function calcLoan(loan) {
-  const P = Number(loan.amount) || 0;          // 대출원금 (원)
-  const annualRate = Number(loan.rate) || 0;   // 연 금리 (%)
-  const r = annualRate / 12 / 100;             // 월 금리
-  const totalMonths = Number(loan.period) || 0;// 대출기간 (개월)
-  const graceMonths = Number(loan.grace) || 0; // 거치기간 (개월)
-  const n = totalMonths - graceMonths;         // 실 상환 개월
+  const P            = Number(loan.amount) || 0;   // 대출원금 (원)
+  const annualRate   = Number(loan.rate)   || 0;   // 연 금리 (%)
+  const r            = annualRate / 12 / 100;       // 월 금리
+  const n            = Number(loan.period) || 0;   // 상환기간 (개월) — 거치 후 원금 분할기간
+  const graceMonths  = Number(loan.grace)  || 0;   // 거치기간 (개월) — 이자만 납부
 
-  if (P <= 0 || annualRate <= 0 || totalMonths <= 0) return null;
+  if (P <= 0 || annualRate <= 0 || n <= 0) return null;
 
-  const graceMonthly = Math.round(P * r);      // 거치 중 이자
+  const graceMonthly = Math.round(P * r);           // 거치 중 이자만 납부액
 
   let repayMonthly1 = 0, repayMonthlyLast = 0, totalInterest = 0;
 
   if (loan.type === 'bullet') {
-    // 만기일시: 이자만 납부 내내, 만기에 원금
-    repayMonthly1 = graceMonthly;
+    // 만기일시: 전 기간 이자만, 만기에 원금 일시상환
+    repayMonthly1    = graceMonthly;
     repayMonthlyLast = graceMonthly;
-    totalInterest = Math.round(graceMonthly * totalMonths);
+    totalInterest    = Math.round(graceMonthly * (graceMonths + n));
   } else if (loan.type === 'equal-total') {
-    // 원리금균등상환
-    if (n <= 0 || r <= 0) {
-      repayMonthly1 = repayMonthlyLast = Math.round(P / Math.max(n,1));
+    // 원리금균등: 상환기간(n) 동안 매월 동일 금액
+    if (r <= 0) {
+      repayMonthly1 = repayMonthlyLast = Math.round(P / n);
     } else {
       const factor = Math.pow(1 + r, n);
       repayMonthly1 = repayMonthlyLast = Math.round(P * r * factor / (factor - 1));
     }
     totalInterest = Math.round(graceMonthly * graceMonths + repayMonthly1 * n - P);
   } else {
-    // 원금균등상환: 원금 1/n + 이자(잔액 × r)
-    const principalPayment = P / n;
-    repayMonthly1    = Math.round(principalPayment + P * r);
-    repayMonthlyLast = Math.round(principalPayment + principalPayment * r);
-    // 총 이자 = 거치이자 + 상환이자 합산
-    let interestSum = graceMonthly * graceMonths;
-    for (let k = 0; k < n; k++) {
-      interestSum += (P - k * principalPayment) * r;
-    }
+    // 원금균등: 매월 원금(P/n) 고정, 이자는 잔액 기준으로 감소
+    const pp = P / n;
+    repayMonthly1    = Math.round(pp + P * r);       // 1회차 (이자 최대)
+    repayMonthlyLast = Math.round(pp + pp * r);      // 마지막 (이자 최소)
+    let interestSum  = graceMonthly * graceMonths;
+    for (let k = 0; k < n; k++) interestSum += (P - k * pp) * r;
     totalInterest = Math.round(interestSum);
   }
 
   return { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest, n, graceMonths };
 }
 
-/** 현재 시점 기준 이번 달 상환액 */
+/**
+ * 현재 시점 기준 이번 달 납입액
+ *   - startDate 없으면: 거치기간이 있으면 graceMonthly, 없으면 repayMonthly1 반환
+ *   - startDate 있으면: 경과 개월 기준으로 거치/상환 단계 판별
+ */
 function currentMonthlyPayment(loan) {
   const res = calcLoan(loan);
   if (!res) return 0;
-  if (!loan.startDate) return res.repayMonthly1;
-  const today = new Date();
-  const start = new Date(loan.startDate);
-  const elapsedMonths = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
-  if (elapsedMonths < 0) return res.graceMonthly;
-  if (elapsedMonths < res.graceMonths) return res.graceMonthly;
-  const repayElapsed = elapsedMonths - res.graceMonths;
-  if (repayElapsed >= res.n) return 0; // 상환 완료
+
+  if (!loan.startDate) {
+    // 실행일 미입력 → 거치 중으로 가정 (있는 경우), 없으면 상환 중
+    return res.graceMonths > 0 ? res.graceMonthly : res.repayMonthly1;
+  }
+
+  const today   = new Date(); today.setHours(0,0,0,0);
+  const start   = new Date(loan.startDate); start.setHours(0,0,0,0);
+  const elapsed = (today.getFullYear() - start.getFullYear()) * 12
+                + (today.getMonth()    - start.getMonth());
+
+  if (elapsed < 0) return res.graceMonthly;                     // 아직 시작 전
+  if (elapsed < res.graceMonths) return res.graceMonthly;       // 거치 중 (이자만)
+
+  const repayElapsed = elapsed - res.graceMonths;
+  if (repayElapsed >= res.n) return 0;                          // 상환 완료
+
+  // 원금균등: 회차에 따라 감소
   if (loan.type === 'equal-princ') {
-    const P = Number(loan.amount) || 0;
-    const r = Number(loan.rate) / 12 / 100;
-    const principalPayment = P / res.n;
-    return Math.round(principalPayment + (P - repayElapsed * principalPayment) * r);
+    const P  = Number(loan.amount) || 0;
+    const r  = Number(loan.rate) / 12 / 100;
+    const pp = P / res.n;
+    return Math.round(pp + (P - repayElapsed * pp) * r);
   }
   return res.repayMonthly1;
 }
@@ -1536,20 +1553,22 @@ function renderLoans() {
     const typeLabel = LOAN_TYPE_LABEL[loan.type] || '원리금균등';
     const monthlyNow = currentMonthlyPayment(loan);
 
-    let repayDesc = '-';
-    let repayNote = '';
+    let repayDesc = '-', repayNote = '';
     if (res) {
       if (loan.type === 'equal-total') {
-        repayDesc = fmtWon(res.repayMonthly1) + '/월';
-        repayNote = '고정';
+        repayDesc = fmtWon(res.repayMonthly1) + '/월 (고정)';
       } else if (loan.type === 'equal-princ') {
         repayDesc = fmtWon(res.repayMonthly1) + '/월';
-        repayNote = `→ ${fmtWon(res.repayMonthlyLast)}/월 (감소)`;
+        repayNote = `→ 말회 ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
       } else {
-        repayDesc = fmtWon(res.repayMonthly1) + '/월';
+        repayDesc = fmtWon(res.graceMonthly) + '/월 (이자만)';
         repayNote = '만기에 원금 일시상환';
       }
     }
+    // 현재 단계 판별
+    const inGrace = res && res.graceMonths > 0 && monthlyNow === res.graceMonthly;
+    const phaseLabel = inGrace ? '거치 중 (이자만)' : '원금+이자 상환 중';
+    const totalTerm = (Number(loan.grace)||0) + (Number(loan.period)||0);
 
     const card = document.createElement('div');
     card.className = 'loan-card';
@@ -1571,8 +1590,8 @@ function renderLoans() {
           <div class="loan-stat-value">${loan.rate || 0}%</div>
         </div>
         <div class="loan-stat">
-          <div class="loan-stat-label">기간</div>
-          <div class="loan-stat-value">${Math.floor((loan.period||0)/12)}년 ${(loan.period||0)%12?((loan.period||0)%12)+'개월':''}</div>
+          <div class="loan-stat-label">총 기간</div>
+          <div class="loan-stat-value">${Math.floor(totalTerm/12)}년 ${totalTerm%12?totalTerm%12+'개월':''}</div>
         </div>
         <div class="loan-stat">
           <div class="loan-stat-label">실행일</div>
@@ -1588,14 +1607,22 @@ function renderLoans() {
         </div>
       </div>
       <div class="loan-monthly-box">
-        <div>
-          <div class="loan-monthly-label">현재 월 상환액</div>
+        <div style="flex:1">
+          <div class="loan-monthly-label">${phaseLabel}</div>
           <div class="loan-monthly-value">${fmtWon(monthlyNow)}/월</div>
-          ${res && res.graceMonths > 0 ? `<div class="loan-grace-note">거치 ${res.graceMonths}개월 후 → ${repayDesc}</div>` : `<div class="loan-grace-note">${repayNote}</div>`}
+          ${res && res.graceMonths > 0 && inGrace
+            ? `<div class="loan-grace-note">거치 ${res.graceMonths}개월 종료 후 → ${repayDesc}</div>${repayNote?`<div class="loan-grace-note">${repayNote}</div>`:''}`
+            : res && res.graceMonths > 0
+              ? `<div class="loan-grace-note">거치 완료 · ${repayNote}</div>`
+              : `<div class="loan-grace-note">${repayNote}</div>`}
         </div>
-        <div style="text-align:right">
-          ${res && loan.type === 'equal-princ' ? `<div class="loan-grace-note">초회 ${fmtWon(res.repayMonthly1)}/월</div><div class="loan-grace-note">말회 ${fmtWon(res.repayMonthlyLast)}/월</div>` : ''}
-        </div>
+        ${res && res.graceMonths > 0 ? `
+        <div style="text-align:right;border-left:1px solid rgba(255,255,255,0.25);padding-left:14px;margin-left:8px">
+          <div class="loan-grace-note">거치 ${res.graceMonths}개월</div>
+          <div style="font-size:0.85rem;font-weight:700;color:white;margin-top:2px">${fmtWon(res.graceMonthly)}/월</div>
+          <div class="loan-grace-note">↓ 상환 ${res.n}개월</div>
+          <div style="font-size:0.85rem;font-weight:700;color:white;margin-top:2px">${fmtWon(res.repayMonthly1)}/월</div>
+        </div>` : ''}
       </div>`;
     card.onclick = () => openLoanModal(idx);
     listEl.appendChild(card);
@@ -1629,26 +1656,31 @@ function calcLoanPreview() {
   if (!res) { preview.style.display = 'none'; return; }
   preview.style.display = 'block';
 
-  const graceLabel = loan.grace > 0 ? `거치기간 중 (${loan.grace}개월)` : '거치기간 없음';
-  const repayN = loan.period - loan.grace;
-  const repayLabel = `상환기간 (${repayN}개월)`;
+  // 거치기간 표시
+  if (loan.grace > 0) {
+    document.getElementById('preview-grace-label').textContent = `거치기간 ${loan.grace}개월 동안`;
+    document.getElementById('preview-grace-amt').textContent   = fmtWon(res.graceMonthly) + '/월';
+  } else {
+    document.getElementById('preview-grace-label').textContent = '거치기간 없음';
+    document.getElementById('preview-grace-amt').textContent   = '–';
+  }
 
-  document.getElementById('preview-grace-label').textContent  = graceLabel;
-  document.getElementById('preview-grace-amt').textContent    = loan.grace > 0 ? fmtWon(res.graceMonthly) + '/월' : '–';
-  document.getElementById('preview-repay-label').textContent  = repayLabel;
-
+  // 상환기간 표시 (n = loan.period, 거치 유무와 무관)
+  document.getElementById('preview-repay-label').textContent = `거치 후 상환기간 ${loan.period}개월`;
   if (loan.type === 'equal-total') {
     document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
-    document.getElementById('preview-repay-note').textContent = '고정 금액';
+    document.getElementById('preview-repay-note').textContent = '매월 동일 (고정)';
   } else if (loan.type === 'equal-princ') {
     document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
-    document.getElementById('preview-repay-note').textContent = `→ ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
+    document.getElementById('preview-repay-note').textContent = `말회 ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
   } else {
-    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
-    document.getElementById('preview-repay-note').textContent = '이자만, 만기에 원금 상환';
+    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.graceMonthly) + '/월';
+    document.getElementById('preview-repay-note').textContent = '만기에 원금 일시상환';
   }
+
+  const totalTerm = (loan.grace || 0) + (loan.period || 0);
   document.getElementById('preview-summary').textContent =
-    `총 납입 예상 이자: ${fmtWon(res.totalInterest)}  |  원금 + 이자 합계: ${fmtWon(loan.amount + res.totalInterest)}`;
+    `총 기간: ${totalTerm}개월 (거치 ${loan.grace||0} + 상환 ${loan.period||0})  |  예상 총 이자: ${fmtWon(res.totalInterest)}`;
 }
 
 function openLoanModal(idx) {
