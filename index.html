@@ -3,203 +3,1274 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>🏠 하우스 태동 입주 준비 대시보드</title>
+
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-#loading-overlay { position:fixed; inset:0; background:#1a1a2e; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; transition:opacity 0.4s; }
-#loading-overlay.hidden { opacity:0; pointer-events:none; }
-.loading-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.15); border-top-color:#6366f1; border-radius:50%; animation:spin 0.8s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-.loading-text { color:rgba(255,255,255,0.7); font-size:0.88rem; }
-#save-status { position:fixed; bottom:24px; right:24px; background:#1a1a2e; color:white; padding:8px 16px; border-radius:99px; font-size:0.78rem; font-weight:600; opacity:0; transition:opacity 0.3s; z-index:500; }
-#save-status.show { opacity:1; }
-#save-status.saving { background:#6366f1; }
-#save-status.saved  { background:#22c55e; }
-#save-status.error  { background:#ef4444; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Noto Sans KR", sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
 
-header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); color:white; padding:28px 32px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
-.subtitle { font-size:0.85rem; opacity:0.7; margin-top:4px; }
-.dday-badge { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+/* ================================
+   로딩 및 저장 상태
+================================ */
 
-.container { max-width:1280px; margin:0 auto; padding:28px 24px; }
-.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-.section-gap { margin-top:24px; }
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 9999;
+  transition: opacity 0.4s;
+}
 
-.card { background:white; border-radius:16px; padding:22px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.07); position:relative; overflow:hidden; }
-.card-kpi { cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
-.card-kpi:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12); }
-.card-kpi:active { transform:translateY(0); }
-.card-title { font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:#8b92a5; margin-bottom:10px; }
-.card-value { font-size:1.65rem; font-weight:800; color:#1a1a2e; letter-spacing:-0.5px; line-height:1.15; word-break:keep-all; }
-.card-sub { font-size:0.82rem; color:#8b92a5; margin-top:6px; }
-.card-accent { position:absolute; top:0; right:0; width:5px; height:100%; border-radius:0 16px 16px 0; }
-.card-link-hint { position:absolute; bottom:10px; right:14px; font-size:0.68rem; color:#cbd5e1; }
-.progress-wrap { margin-top:10px; }
-.progress-label { display:flex; justify-content:space-between; font-size:0.78rem; color:#8b92a5; margin-bottom:5px; }
-.progress-bar-bg { background:#eef0f5; border-radius:99px; height:8px; overflow:hidden; }
-.progress-bar-fill { height:100%; border-radius:99px; transition:width 0.6s cubic-bezier(.4,0,.2,1); }
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
 
-.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.section-title { font-size:1.05rem; font-weight:700; color:#1a1a2e; display:flex; align-items:center; gap:8px; }
-.section-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.95rem; }
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
-/* Cost table */
-.cost-table { width:100%; border-collapse:collapse; font-size:0.88rem; }
-.cost-table th { background:#f7f8fc; padding:9px 12px; text-align:left; font-size:0.75rem; font-weight:600; color:#8b92a5; text-transform:uppercase; letter-spacing:0.5px; }
-.cost-table td { padding:9px 12px; border-bottom:1px solid #f0f2f5; vertical-align:middle; }
-.cost-table tr:last-child td { border-bottom:none; }
-.cost-table tr.clickable { cursor:pointer; }
-.cost-table tr.clickable:hover td { background:#fafbff; }
-.cost-cat-header td { background:#f7f8fc; font-size:0.75rem; font-weight:700; padding:7px 12px; border-bottom:none; }
-.cost-parent-row td { background:#fcfcfd; }
-.cost-inst-row td { padding:7px 12px 7px 28px; font-size:0.83rem; }
-.cost-total-row td { background:#f0f2f5; font-weight:700; border-top:2px solid #e5e7ef; }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
-/* Badges */
-.badge-paid    { display:inline-block; background:#e8faf0; color:#22c55e; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
-.badge-due     { display:inline-block; background:#fff3e8; color:#f97316; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
-.badge-pending { display:inline-block; background:#f0f2f5; color:#8b92a5; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
-.badge-partial { display:inline-block; background:#e0f2fe; color:#0ea5e9; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
+.loading-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
+}
 
-/* Timeline */
-.timeline { position:relative; padding-left:22px; }
-.timeline::before { content:''; position:absolute; left:7px; top:8px; bottom:8px; width:2px; background:linear-gradient(to bottom,#6366f1,#e5e7ef); }
-.tl-group { margin-bottom:20px; }
-.tl-group:last-child { margin-bottom:0; }
-.tl-dot { position:absolute; left:-22px; top:4px; width:14px; height:14px; border-radius:50%; border:2px solid white; }
-.tl-dot.done     { background:#22c55e; box-shadow:0 0 0 2px #22c55e; }
-.tl-dot.upcoming { background:#f97316; box-shadow:0 0 0 2px #f97316; }
-.tl-dot.future   { background:#e5e7ef; box-shadow:0 0 0 2px #cbd5e1; }
-.tl-date-block { position:relative; margin-bottom:8px; }
-.tl-date-label { font-size:0.8rem; font-weight:700; color:#1a1a2e; }
-.tl-date-sub   { font-size:0.73rem; color:#8b92a5; }
-.tl-items { border-left:2px solid #e5e7ef; margin-left:3px; padding-left:12px; }
-.tl-item { padding:6px 0; cursor:pointer; border-radius:6px; }
-.tl-item:hover { background:#fafbff; }
-.tl-item-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
-.tl-item-name  { font-size:0.88rem; font-weight:600; color:#1a1a2e; }
-.tl-item-amt   { font-size:0.82rem; color:#6366f1; font-weight:700; white-space:nowrap; }
+#save-status {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 500;
+  opacity: 0;
+  padding: 8px 16px;
+  border-radius: 99px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: opacity 0.25s;
+}
 
-/* Todo */
-.todo-item { display:flex; align-items:flex-start; gap:12px; padding:11px 8px; border-bottom:1px solid #f0f2f5; border-radius:8px; transition:background 0.15s; }
-.todo-item:last-child { border-bottom:none; }
-.todo-item:hover { background:#fafbff; }
-.todo-checkbox { width:20px; height:20px; border:2px solid #cbd5e1; border-radius:6px; flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; cursor:pointer; font-size:0.7rem; color:white; }
-.todo-checkbox.checked { background:#6366f1; border-color:#6366f1; }
-.todo-text { flex:1; cursor:pointer; }
-.todo-label { font-size:0.88rem; font-weight:500; line-height:1.4; }
-.todo-label.done { text-decoration:line-through; color:#b0b7c3; }
-.todo-note { font-size:0.75rem; color:#8b92a5; margin-top:2px; }
-.todo-priority { font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:99px; flex-shrink:0; }
-.priority-high { background:#fee2e2; color:#ef4444; }
-.priority-mid  { background:#fff3e8; color:#f97316; }
-.priority-low  { background:#f0f2f5; color:#8b92a5; }
+#save-status.show {
+  opacity: 1;
+}
 
-/* Tabs */
-.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
-.tab { padding:5px 14px; border-radius:99px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1.5px solid #e5e7ef; background:white; color:#8b92a5; transition:all 0.15s; }
-.tab.active { background:#6366f1; border-color:#6366f1; color:white; }
-.tab:hover:not(.active) { border-color:#6366f1; color:#6366f1; }
+#save-status.saving {
+  background: #6366f1;
+}
 
-/* Item cards */
-.item-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
-.item-card { border:1.5px solid #e5e7ef; border-radius:12px; padding:14px 16px 12px; transition:all 0.15s; cursor:pointer; position:relative; }
-.item-card:hover { border-color:#6366f1; box-shadow:0 2px 12px rgba(99,102,241,0.1); }
-.item-card.st-paid    { background:#f0fdf4; border-color:#86efac; }
-.item-card.st-partial { background:#f0f9ff; border-color:#7dd3fc; }
-.item-card.st-due     { background:#fff7ed; border-color:#fdba74; }
-.item-cat  { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
-.item-name { font-size:0.88rem; font-weight:600; color:#1a1a2e; margin-bottom:4px; line-height:1.3; padding-right:60px; }
-.item-amt  { font-size:0.85rem; color:#6366f1; font-weight:700; }
-.item-date { font-size:0.72rem; color:#8b92a5; margin-top:3px; }
-.item-memo { font-size:0.72rem; color:#8b92a5; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.item-badge { position:absolute; top:10px; right:10px; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:99px; cursor:pointer; }
-.item-prog-wrap { margin-top:8px; }
-.item-prog-bar-bg { background:#e5e7ef; border-radius:99px; height:5px; overflow:hidden; margin-bottom:4px; }
-.item-prog-bar-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#22c55e,#86efac); }
-.item-prog-label { font-size:0.72rem; color:#8b92a5; }
-.item-next { font-size:0.73rem; color:#f97316; margin-top:5px; font-weight:600; }
-.item-inst-dots { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-.inst-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.inst-dot.paid    { background:#22c55e; }
-.inst-dot.due     { background:#f97316; }
-.inst-dot.pending { background:#cbd5e1; }
+#save-status.saved {
+  background: #22c55e;
+}
 
-/* Total bar */
-.total-bar { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; padding:14px 20px; border-radius:12px; margin-top:16px; }
-.total-bar-label { font-size:0.82rem; opacity:0.85; }
-.total-bar-value { font-size:1.3rem; font-weight:800; letter-spacing:-0.5px; }
+#save-status.error {
+  background: #ef4444;
+}
 
-/* Modals */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; }
-.modal-overlay.show { display:flex; }
-.modal { background:white; border-radius:20px; padding:28px 32px; width:90%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto; }
-.modal-title { font-size:1.05rem; font-weight:700; margin-bottom:20px; }
-.form-group { margin-bottom:14px; }
-.form-label { font-size:0.78rem; font-weight:600; color:#8b92a5; margin-bottom:5px; display:block; }
-.form-input { width:100%; border:1.5px solid #e5e7ef; border-radius:10px; padding:9px 12px; font-size:0.88rem; outline:none; font-family:inherit; transition:border-color 0.15s; }
-.form-input:focus { border-color:#6366f1; }
-.btn-row { display:flex; gap:10px; margin-top:20px; }
-.btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.15s; font-family:inherit; display:flex; align-items:center; justify-content:center; text-align:center; }
-.btn-primary   { background:#6366f1; color:white; }
-.btn-primary:hover { background:#4f46e5; }
-.btn-secondary { background:#f0f2f5; color:#8b92a5; }
-.btn-secondary:hover { background:#e5e7ef; }
-.btn-danger    { background:#fee2e2; color:#ef4444; }
-.btn-danger:hover { background:#fecaca; }
-.btn-add { display:flex; align-items:center; gap:6px; font-size:0.8rem; font-weight:600; color:#6366f1; background:#eef2ff; border:none; border-radius:99px; padding:5px 14px; cursor:pointer; transition:all 0.15s; font-family:inherit; }
-.btn-add:hover { background:#e0e7ff; }
+/* ================================
+   헤더
+================================ */
 
-/* Installment rows in modal */
-.inst-row { background:#f7f8fc; border:1.5px solid #e5e7ef; border-radius:10px; padding:10px 12px; margin-bottom:8px; }
-.inst-row-top { display:flex; gap:6px; margin-bottom:7px; align-items:center; }
-.inst-row-top input { flex:1; }
-.inst-row-bottom { display:grid; grid-template-columns:60px 1fr 130px 80px; gap:6px; }
-.inst-row-label { font-size:0.7rem; font-weight:600; color:#8b92a5; margin-bottom:2px; display:block; }
-.inst-del-btn { background:#fee2e2; border:none; border-radius:6px; color:#ef4444; cursor:pointer; font-size:1rem; width:30px; height:30px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-.inst-del-btn:hover { background:#fecaca; }
-.inst-small { font-size:0.82rem; }
-.inst-section { border-top:1.5px solid #e5e7ef; margin-top:14px; padding-top:14px; }
+header {
+  background: linear-gradient(
+    135deg,
+    #1a1a2e 0%,
+    #16213e 50%,
+    #0f3460 100%
+  );
+  color: white;
+  padding: 28px 32px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 
-/* Loan section */
-.loan-card { border:1.5px solid #e5e7ef; border-radius:14px; padding:16px 18px; margin-bottom:12px; position:relative; transition:all 0.15s; cursor:pointer; }
-.loan-card:hover { border-color:#14b8a6; box-shadow:0 2px 12px rgba(20,184,166,0.1); }
-.loan-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
-.loan-card-name { font-size:0.95rem; font-weight:700; color:#1a1a2e; }
-.loan-card-type { font-size:0.72rem; font-weight:700; padding:2px 9px; border-radius:99px; }
-.loan-type-equal-total  { background:#e0f2fe; color:#0891b2; }
-.loan-type-equal-princ  { background:#f0fdf4; color:#16a34a; }
-.loan-type-bullet       { background:#fdf4ff; color:#9333ea; }
-.loan-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-.loan-stat { background:#f7f8fc; border-radius:8px; padding:8px 12px; }
-.loan-stat-label { font-size:0.68rem; font-weight:600; color:#8b92a5; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
-.loan-stat-value { font-size:0.9rem; font-weight:700; color:#1a1a2e; }
-.loan-monthly-box { background:linear-gradient(135deg,#0d9488,#14b8a6); border-radius:10px; padding:12px 16px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; }
-.loan-monthly-label { font-size:0.8rem; color:rgba(255,255,255,0.8); }
-.loan-monthly-value { font-size:1.05rem; font-weight:800; color:white; }
-.loan-grace-note { font-size:0.75rem; color:rgba(255,255,255,0.75); margin-top:2px; }
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
 
-/* Scroll highlight animation */
-@keyframes sectionPulse { 0%,100%{box-shadow:0 2px 12px rgba(0,0,0,0.07)} 50%{box-shadow:0 0 0 3px #6366f1,0 6px 24px rgba(99,102,241,0.2)} }
-.section-highlight { animation:sectionPulse 0.8s ease; }
+.subtitle {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-top: 4px;
+}
 
-@media(max-width:900px) { .grid-3 { grid-template-columns:1fr 1fr; } }
-@media(max-width:640px) { .grid-3,.grid-2 { grid-template-columns:1fr; } header { padding:20px 18px; } .container { padding:18px 14px; } .inst-row-bottom { grid-template-columns:55px 1fr 110px 75px; } }
-@media(max-width:400px) { .inst-row-bottom { grid-template-columns:1fr 1fr; } }
+.dday-badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 20px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ================================
+   공통 레이아웃
+================================ */
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.section-gap {
+  margin-top: 24px;
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  background: white;
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+}
+
+.card-kpi {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.card-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-title {
+  color: #8b92a5;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.card-value {
+  color: #1a1a2e;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  word-break: keep-all;
+}
+
+.card-sub {
+  color: #8b92a5;
+  font-size: 0.8rem;
+  margin-top: 7px;
+  line-height: 1.45;
+}
+
+.card-accent {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+}
+
+.card-link-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  color: #cbd5e1;
+  font-size: 0.67rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1a1a2e;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-caption {
+  color: #8b92a5;
+  font-size: 0.73rem;
+}
+
+/* ================================
+   진행 막대
+================================ */
+
+.progress-wrap {
+  margin-top: 10px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #8b92a5;
+  font-size: 0.76rem;
+  margin-bottom: 5px;
+}
+
+.progress-bar-bg {
+  height: 8px;
+  background: #eef0f5;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+/* ================================
+   버튼과 탭
+================================ */
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 99px;
+  background: #eef2ff;
+  color: #6366f1;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-add:hover {
+  background: #e0e7ff;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 5px 14px;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 99px;
+  background: white;
+  color: #8b92a5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+}
+
+/* ================================
+   배지
+================================ */
+
+.badge-paid,
+.badge-due,
+.badge-pending,
+.badge-partial {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.badge-paid {
+  background: #e8faf0;
+  color: #16a34a;
+}
+
+.badge-due {
+  background: #fff3e8;
+  color: #ea580c;
+}
+
+.badge-pending {
+  background: #f0f2f5;
+  color: #8b92a5;
+}
+
+.badge-partial {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+/* ================================
+   납부 달력
+================================ */
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calendar-month-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.calendar-nav button {
+  min-width: 38px;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 9px;
+  background: white;
+  color: #6366f1;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.calendar-nav button:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.payment-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calendar-weekday {
+  padding: 7px 2px;
+  text-align: center;
+  color: #8b92a5;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.calendar-weekday.sun {
+  color: #ef4444;
+}
+
+.calendar-weekday.sat {
+  color: #3b82f6;
+}
+
+.calendar-day {
+  min-height: 122px;
+  border: 1px solid #e5e7ef;
+  border-radius: 11px;
+  background: white;
+  padding: 8px;
+  overflow: hidden;
+  cursor: default;
+}
+
+.calendar-day.other-month {
+  background: #f8fafc;
+  opacity: 0.48;
+}
+
+.calendar-day.today {
+  border: 2px solid #6366f1;
+  background: #fafaff;
+}
+
+.calendar-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.calendar-day:nth-child(7n + 1) .calendar-date {
+  color: #ef4444;
+}
+
+.calendar-day:nth-child(7n) .calendar-date {
+  color: #3b82f6;
+}
+
+.today-label {
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: #eef2ff;
+  color: #6366f1;
+  font-size: 0.6rem;
+}
+
+.calendar-amount {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-amount.paid {
+  background: #e8faf0;
+  color: #16a34a;
+}
+
+.calendar-amount.due {
+  background: #fff3e8;
+  color: #ea580c;
+}
+
+.calendar-count {
+  margin-top: 5px;
+  color: #94a3b8;
+  font-size: 0.64rem;
+}
+
+.calendar-detail {
+  margin-top: 6px;
+  border-top: 1px dashed #e5e7ef;
+  padding-top: 5px;
+}
+
+.calendar-detail-item {
+  color: #64748b;
+  font-size: 0.62rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.calendar-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ================================
+   비용 상세 표
+================================ */
+
+.cost-table-wrap {
+  overflow-x: auto;
+}
+
+.cost-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.cost-table th {
+  background: #f7f8fc;
+  padding: 9px 12px;
+  color: #8b92a5;
+  text-align: left;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.cost-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f2f5;
+  vertical-align: middle;
+}
+
+.cost-table tr.clickable {
+  cursor: pointer;
+}
+
+.cost-table tr.clickable:hover td {
+  background: #fafbff;
+}
+
+.cost-cat-header td {
+  background: #f7f8fc;
+  border-bottom: none;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.cost-parent-row td {
+  background: #fcfcfd;
+}
+
+.cost-inst-row td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 28px;
+  font-size: 0.81rem;
+}
+
+.cost-total-row td {
+  border-top: 2px solid #e5e7ef;
+  background: #f0f2f5;
+  font-weight: 800;
+}
+
+.total-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+}
+
+.total-bar-label {
+  opacity: 0.85;
+  font-size: 0.82rem;
+}
+
+.total-bar-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+/* ================================
+   할 일
+================================ */
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 8px;
+  border-bottom: 1px solid #f0f2f5;
+  border-radius: 8px;
+}
+
+.todo-item:hover {
+  background: #fafbff;
+}
+
+.todo-checkbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+}
+
+.todo-checkbox.checked {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.todo-text {
+  flex: 1;
+  cursor: pointer;
+}
+
+.todo-label {
+  font-size: 0.87rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.todo-label.done {
+  color: #b0b7c3;
+  text-decoration: line-through;
+}
+
+.todo-note {
+  color: #8b92a5;
+  font-size: 0.74rem;
+  margin-top: 2px;
+}
+
+.todo-priority {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.priority-high {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.priority-mid {
+  background: #fff3e8;
+  color: #f97316;
+}
+
+.priority-low {
+  background: #f0f2f5;
+  color: #8b92a5;
+}
+
+/* ================================
+   구매 항목 카드
+================================ */
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+}
+
+.item-card {
+  position: relative;
+  min-height: 126px;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.item-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.1);
+}
+
+.item-card.st-paid {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.item-card.st-partial {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+}
+
+.item-card.st-due {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.item-cat {
+  margin-bottom: 5px;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.item-name {
+  padding-right: 68px;
+  color: #1a1a2e;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.item-amt {
+  margin-top: 5px;
+  color: #6366f1;
+  font-size: 0.84rem;
+  font-weight: 800;
+  word-break: break-all;
+}
+
+.item-date,
+.item-memo {
+  margin-top: 4px;
+  color: #8b92a5;
+  font-size: 0.71rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.item-prog-wrap {
+  margin-top: 9px;
+}
+
+.item-prog-label {
+  color: #8b92a5;
+  font-size: 0.69rem;
+  margin-top: 4px;
+}
+
+.item-next {
+  margin-top: 5px;
+  color: #f97316;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.item-inst-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.inst-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.inst-dot.paid {
+  background: #22c55e;
+}
+
+.inst-dot.due {
+  background: #f97316;
+}
+
+.inst-dot.pending {
+  background: #cbd5e1;
+}
+
+/* ================================
+   대출 카드
+================================ */
+
+.loan-card {
+  position: relative;
+  margin-bottom: 14px;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 14px;
+  padding: 17px 18px;
+  cursor: pointer;
+}
+
+.loan-card:hover {
+  border-color: #14b8a6;
+  box-shadow: 0 2px 12px rgba(20, 184, 166, 0.1);
+}
+
+.loan-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.loan-card-name {
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.loan-card-memo {
+  margin-top: 3px;
+  color: #8b92a5;
+  font-size: 0.73rem;
+}
+
+.loan-card-type {
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.loan-type-equal-total {
+  background: #e0f2fe;
+  color: #0891b2;
+}
+
+.loan-type-equal-princ {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.loan-type-bullet {
+  background: #fdf4ff;
+  color: #9333ea;
+}
+
+.loan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.loan-stat {
+  background: #f7f8fc;
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+
+.loan-stat-label {
+  color: #8b92a5;
+  font-size: 0.65rem;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.loan-stat-value {
+  color: #1a1a2e;
+  font-size: 0.86rem;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.loan-monthly-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
+}
+
+.loan-monthly-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.78rem;
+}
+
+.loan-monthly-value {
+  margin-top: 2px;
+  color: white;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.loan-grace-note {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.7rem;
+}
+
+/* ================================
+   모달
+================================ */
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.45);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal {
+  width: 92%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  background: white;
+  padding: 28px 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-title {
+  margin-bottom: 20px;
+  font-size: 1.06rem;
+  font-weight: 800;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #8b92a5;
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+
+.form-input {
+  width: 100%;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 10px;
+  padding: 9px 12px;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.86rem;
+}
+
+.form-input:focus {
+  border-color: #6366f1;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #6366f1;
+  color: white;
+}
+
+.btn-secondary {
+  background: #f0f2f5;
+  color: #8b92a5;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+/* 분할납부 */
+
+.inst-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1.5px solid #e5e7ef;
+}
+
+.inst-row {
+  margin-bottom: 8px;
+  border: 1.5px solid #e5e7ef;
+  border-radius: 10px;
+  background: #f7f8fc;
+  padding: 10px 12px;
+}
+
+.inst-row-top {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.inst-row-top input {
+  flex: 1;
+}
+
+.inst-row-bottom {
+  display: grid;
+  grid-template-columns: 68px 1.2fr 130px 83px;
+  gap: 6px;
+}
+
+.inst-row-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #8b92a5;
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.inst-del-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #ef4444;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* 대출 상환방식 선택 */
+
+.loan-type-select {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.loan-type-btn {
+  border: 2px solid #e5e7ef;
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.loan-type-btn.selected {
+  border-color: #14b8a6;
+  background: #f0fdfa;
+}
+
+.loan-preview {
+  display: none;
+  margin-top: 16px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
+  color: white;
+}
+
+.loan-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.preview-label {
+  opacity: 0.75;
+  font-size: 0.71rem;
+}
+
+.preview-value {
+  margin-top: 2px;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.preview-note {
+  margin-top: 2px;
+  opacity: 0.7;
+  font-size: 0.68rem;
+}
+
+.preview-summary {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  opacity: 0.85;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+@keyframes sectionPulse {
+  0%,
+  100% {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 3px #6366f1,
+      0 6px 24px rgba(99, 102, 241, 0.2);
+  }
+}
+
+.section-highlight {
+  animation: sectionPulse 0.8s ease;
+}
+
+/* ================================
+   반응형
+================================ */
+
+@media (max-width: 900px) {
+  .grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .loan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .calendar-day {
+    min-height: 92px;
+    padding: 5px;
+  }
+
+  .calendar-amount {
+    padding: 3px 4px;
+    font-size: 0.59rem;
+  }
+
+  .calendar-detail {
+    display: none;
+  }
+
+  .calendar-count {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  header {
+    padding: 20px 18px;
+  }
+
+  header h1 {
+    font-size: 1.3rem;
+  }
+
+  .container {
+    padding: 18px 14px;
+  }
+
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .loan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inst-row-bottom {
+    grid-template-columns: 68px 1fr;
+  }
+
+  .calendar-toolbar {
+    align-items: flex-start;
+  }
+
+  .calendar-month-title {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .modal {
+    padding: 22px 18px;
+  }
+
+  .loan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-day {
+    min-height: 78px;
+  }
+
+  .calendar-amount {
+    font-size: 0.55rem;
+  }
+}
 </style>
 </head>
+
 <body>
 
 <div id="loading-overlay">
   <div class="loading-spinner"></div>
   <div class="loading-text">데이터 불러오는 중...</div>
 </div>
+
 <div id="save-status"></div>
 
 <header>
@@ -207,382 +1278,930 @@ header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; }
     <h1>🏠 하우스 태동 입주 준비 대시보드</h1>
     <div class="subtitle">e편한세상 검단 웰카운티 2504동 0704호</div>
   </div>
+
   <div class="dday-badge" id="dday-badge">-</div>
 </header>
 
 <div class="container">
 
-  <!-- KPI (클릭 → 해당 섹션으로 이동) -->
+  <!-- 상단 비용 KPI -->
   <div class="grid-3">
+
     <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#6366f1"></div>
-      <div class="card-title">총 비용</div>
+      <div class="card-title">총 비용 · 분양가 제외</div>
       <div class="card-value" id="kpi-total">-</div>
-      <div class="card-sub">전체 항목 합계</div>
+      <div class="card-sub">옵션·세금·가전·가구·인테리어 등</div>
       <div class="card-link-hint">↓ 비용 상세</div>
     </div>
+
     <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#22c55e"></div>
-      <div class="card-title">납부 / 구매 완료</div>
+      <div class="card-title">납부 / 구매 완료 · 분양가 제외</div>
       <div class="card-value" id="kpi-paid">-</div>
+
       <div class="progress-wrap">
-        <div class="progress-label"><span>완료율</span><span id="kpi-paid-pct">-</span></div>
-        <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-paid" style="background:#22c55e;width:0%"></div></div>
+        <div class="progress-label">
+          <span>완료율</span>
+          <span id="kpi-paid-pct">-</span>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div
+            class="progress-bar-fill"
+            id="pb-paid"
+            style="background:#22c55e;width:0%"
+          ></div>
+        </div>
       </div>
+
       <div class="card-link-hint">↓ 비용 상세</div>
     </div>
+
     <div class="card card-kpi" onclick="scrollToSection('section-items')">
       <div class="card-accent" style="background:#f97316"></div>
-      <div class="card-title">잔여 납부 / 구매액</div>
+      <div class="card-title">잔여 납부 / 구매액 · 분양가 제외</div>
       <div class="card-value" id="kpi-remain">-</div>
-      <div class="card-sub">미완료 항목 합계</div>
+      <div class="card-sub">완료되지 않은 비용 합계</div>
       <div class="card-link-hint">↓ 항목 리스트</div>
     </div>
+
     <div class="card card-kpi" onclick="scrollToSection('section-todo')">
       <div class="card-accent" style="background:#a855f7"></div>
       <div class="card-title">할 일 진행률</div>
       <div class="card-value" id="kpi-todo">-</div>
+
       <div class="progress-wrap">
-        <div class="progress-label"><span>완료 항목</span><span id="kpi-todo-detail">-</span></div>
-        <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-todo" style="background:#a855f7;width:0%"></div></div>
+        <div class="progress-label">
+          <span>완료 항목</span>
+          <span id="kpi-todo-detail">-</span>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div
+            class="progress-bar-fill"
+            id="pb-todo"
+            style="background:#a855f7;width:0%"
+          ></div>
+        </div>
       </div>
+
       <div class="card-link-hint">↓ 할 일 목록</div>
     </div>
-    <div class="card card-kpi" onclick="scrollToSection('section-timeline')">
+
+    <div class="card card-kpi" onclick="scrollToSection('section-calendar')">
       <div class="card-accent" style="background:#f97316"></div>
       <div class="card-title">납부 / 결제 예정</div>
       <div class="card-value" id="kpi-due-count">-</div>
       <div class="card-sub" id="kpi-due-amt">예정 합계: -</div>
-      <div class="card-link-hint">↓ 납부 일정</div>
+      <div class="card-link-hint">↓ 납부 달력</div>
     </div>
+
     <div class="card card-kpi" onclick="scrollToSection('section-items')">
       <div class="card-accent" style="background:#f43f5e"></div>
-      <div class="card-title">미완료 항목</div>
+      <div class="card-title">미완료 항목 · 분양가 제외</div>
       <div class="card-value" id="kpi-pending-count">-</div>
-      <div class="card-sub">납부예정 포함</div>
+      <div class="card-sub">예정 및 미결제 항목</div>
       <div class="card-link-hint">↓ 항목 리스트</div>
     </div>
+
   </div>
 
   <!-- 대출 KPI -->
   <div class="grid-2 section-gap">
+
     <div class="card card-kpi" onclick="scrollToSection('section-loans')">
       <div class="card-accent" style="background:#14b8a6"></div>
-      <div class="card-title">총 대출 잔액</div>
-      <div class="card-value" id="kpi-loan-total">-</div>
-      <div class="card-sub" id="kpi-loan-count">대출 없음</div>
+      <div class="card-title">대출 납부 현황</div>
+
+      <div class="card-value" id="kpi-loan-remaining">-</div>
+
+      <div class="card-sub" id="kpi-loan-detail">
+        남은 원금
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>원금 상환 완료율</span>
+          <span id="kpi-loan-pct">-</span>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div
+            class="progress-bar-fill"
+            id="pb-loan"
+            style="background:#14b8a6;width:0%"
+          ></div>
+        </div>
+      </div>
+
       <div class="card-link-hint">↓ 대출 관리</div>
     </div>
+
     <div class="card card-kpi" onclick="scrollToSection('section-loans')">
       <div class="card-accent" style="background:#0d9488"></div>
       <div class="card-title">월 예상 상환액 합계</div>
       <div class="card-value" id="kpi-loan-monthly">-</div>
-      <div class="card-sub">현재 시점 기준</div>
+      <div class="card-sub">현재 상환 단계 및 다음 납부회차 기준</div>
       <div class="card-link-hint">↓ 대출 관리</div>
     </div>
+
   </div>
 
-  <!-- 비용 상세 + 납부일정 -->
-  <div class="grid-2 section-gap">
-    <div class="card" id="section-cost" style="overflow:auto">
-      <div class="section-header">
-        <div class="section-title"><div class="section-icon" style="background:#eef2ff">💰</div>비용 상세 내역</div>
-        <span style="font-size:0.73rem;color:#8b92a5">리스트 자동 연동</span>
+  <!-- 납부 달력 -->
+  <div class="card section-gap" id="section-calendar">
+
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon" style="background:#fff3e8">📅</div>
+        납부 달력
       </div>
-      <table class="cost-table">
-        <thead><tr>
-          <th>항목</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th>
-        </tr></thead>
-        <tbody id="cost-tbody"></tbody>
-      </table>
-      <div class="total-bar">
-        <div class="total-bar-label">총 비용 합계</div>
-        <div class="total-bar-value" id="total-bar-val">-</div>
+
+      <span class="section-caption">
+        대출은 납부일 경과 시 자동 납부 처리
+      </span>
+    </div>
+
+    <div class="calendar-toolbar">
+      <div class="calendar-month-title" id="calendar-month-title">-</div>
+
+      <div class="calendar-nav">
+        <button onclick="changeCalendarMonth(-1)">‹</button>
+        <button onclick="goCalendarToday()">오늘</button>
+        <button onclick="changeCalendarMonth(1)">›</button>
       </div>
     </div>
 
-    <div class="card" id="section-timeline">
-      <div class="section-header">
-        <div class="section-title"><div class="section-icon" style="background:#fff3e8">📅</div>납부 일정</div>
-        <span style="font-size:0.73rem;color:#8b92a5">납부일 항목 자동 표시</span>
-      </div>
-      <div class="timeline" id="payment-timeline"></div>
-      <div id="timeline-empty" style="display:none;color:#8b92a5;font-size:0.84rem;text-align:center;padding:24px 0;line-height:1.6">
-        납부일이 설정된 항목이 없습니다<br><small>리스트 편집 → 납부/결제 예정일 또는 분할 납부일 입력</small>
-      </div>
+    <div class="payment-calendar" id="payment-calendar"></div>
+
+    <div class="calendar-legend">
+      <span>
+        <i class="legend-dot" style="background:#22c55e"></i>
+        납부 완료 총계
+      </span>
+
+      <span>
+        <i class="legend-dot" style="background:#f97316"></i>
+        납부 예정 총계
+      </span>
+
+      <span>
+        대출 이자와 원금 납부액도 달력에 포함
+      </span>
     </div>
+
+  </div>
+
+  <!-- 비용 상세 -->
+  <div class="card section-gap" id="section-cost">
+
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon" style="background:#eef2ff">💰</div>
+        비용 상세 내역
+      </div>
+
+      <span class="section-caption">
+        구매·결제·납부 리스트 자동 연동
+      </span>
+    </div>
+
+    <div class="cost-table-wrap">
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th style="text-align:right">금액</th>
+            <th style="text-align:center">상태</th>
+          </tr>
+        </thead>
+
+        <tbody id="cost-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="total-bar">
+      <div class="total-bar-label">분양가 포함 전체 비용 합계</div>
+      <div class="total-bar-value" id="total-bar-val">-</div>
+    </div>
+
   </div>
 
   <!-- 할 일 -->
   <div class="card section-gap" id="section-todo">
+
     <div class="section-header">
-      <div class="section-title"><div class="section-icon" style="background:#f3e8ff">✅</div>입주 준비 할 일</div>
-      <button class="btn-add" onclick="openTodoModal(null)">+ 항목 추가</button>
+      <div class="section-title">
+        <div class="section-icon" style="background:#f3e8ff">✅</div>
+        입주 준비 할 일
+      </div>
+
+      <button class="btn-add" onclick="openTodoModal(null)">
+        + 항목 추가
+      </button>
     </div>
+
     <div class="tabs" id="todo-tabs"></div>
     <div id="todo-list"></div>
-    <div style="margin-top:16px;background:#f7f8fc;border-radius:12px;padding:14px 16px">
+
+    <div
+      style="
+        margin-top:16px;
+        background:#f7f8fc;
+        border-radius:12px;
+        padding:14px 16px;
+      "
+    >
       <div class="progress-label" style="margin-bottom:8px">
-        <span style="font-weight:600;color:#1a1a2e">전체 진행률</span>
-        <span id="todo-overall-pct" style="font-weight:700;color:#a855f7">-</span>
+        <span style="font-weight:700;color:#1a1a2e">전체 진행률</span>
+        <span
+          id="todo-overall-pct"
+          style="font-weight:800;color:#a855f7"
+        >-</span>
       </div>
+
       <div class="progress-bar-bg" style="height:10px">
-        <div class="progress-bar-fill" id="pb-todo-overall" style="background:linear-gradient(90deg,#6366f1,#a855f7);width:0%"></div>
+        <div
+          class="progress-bar-fill"
+          id="pb-todo-overall"
+          style="
+            background:linear-gradient(90deg,#6366f1,#a855f7);
+            width:0%;
+          "
+        ></div>
       </div>
     </div>
+
   </div>
 
   <!-- 대출 관리 -->
   <div class="card section-gap" id="section-loans">
+
     <div class="section-header">
-      <div class="section-title"><div class="section-icon" style="background:#ccfbf1">🏦</div>대출 관리</div>
-      <button class="btn-add" onclick="openLoanModal(null)">+ 대출 추가</button>
+      <div class="section-title">
+        <div class="section-icon" style="background:#ccfbf1">🏦</div>
+        대출 관리
+      </div>
+
+      <button class="btn-add" onclick="openLoanModal(null)">
+        + 대출 추가
+      </button>
     </div>
+
+    <div
+      style="
+        margin-bottom:14px;
+        padding:10px 14px;
+        border-radius:10px;
+        background:#f7f8fc;
+        color:#8b92a5;
+        font-size:0.76rem;
+        line-height:1.55;
+      "
+    >
+      대출 실행일과 매월 납부일을 기준으로 납부회차를 자동 계산합니다.
+      거치기간에는 이자만 납부하며 원금은 줄어들지 않습니다.
+      만기일시상환은 마지막 회차에 원금 전액이 상환됩니다.
+    </div>
+
     <div id="loan-list">
-      <div style="text-align:center;color:#8b92a5;font-size:0.84rem;padding:28px 0" id="loan-empty">
-        등록된 대출이 없습니다.<br><small>+ 대출 추가 버튼으로 주택담보대출, 전세대출 등을 등록하세요.</small>
+      <div
+        id="loan-empty"
+        style="
+          text-align:center;
+          color:#8b92a5;
+          font-size:0.84rem;
+          padding:28px 0;
+        "
+      >
+        등록된 대출이 없습니다.<br>
+        <small>+ 대출 추가 버튼으로 대출을 등록하세요.</small>
       </div>
     </div>
+
   </div>
 
-  <!-- 구매/결제/납부 메인 리스트 -->
+  <!-- 구매·결제·납부 리스트 -->
   <div class="card section-gap" id="section-items">
+
     <div class="section-header">
-      <div class="section-title"><div class="section-icon" style="background:#e0f2fe">📋</div>구매 · 결제 · 납부 리스트</div>
-      <button class="btn-add" onclick="openItemModal(null)">+ 항목 추가</button>
+      <div class="section-title">
+        <div class="section-icon" style="background:#e0f2fe">📋</div>
+        구매 · 결제 · 납부 리스트
+      </div>
+
+      <button class="btn-add" onclick="openItemModal(null)">
+        + 항목 추가
+      </button>
     </div>
-    <div style="font-size:0.78rem;color:#8b92a5;margin-bottom:14px;padding:10px 14px;background:#f7f8fc;border-radius:10px">
-      💡 <strong>메인 리스트</strong> — 모든 항목을 여기에 입력하면 비용 상세내역·납부일정이 자동 업데이트됩니다.
-      카드 배지 클릭 → 상태 변경. <strong>분할 납부</strong> 기능으로 중도금 등 여러 회차를 하나의 항목으로 관리할 수 있습니다.
+
+    <div
+      style="
+        margin-bottom:14px;
+        padding:10px 14px;
+        border-radius:10px;
+        background:#f7f8fc;
+        color:#8b92a5;
+        font-size:0.76rem;
+        line-height:1.55;
+      "
+    >
+      모든 금액은 원 단위로 입력합니다.
+      납부일을 입력하면 달력에 자동 표시되며,
+      분할납부를 사용하면 계약금·중도금·잔금 등을 한 항목으로 관리할 수 있습니다.
     </div>
+
     <div class="tabs" id="item-tabs"></div>
     <div class="item-grid" id="item-grid"></div>
-    <div class="total-bar" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">
-      <div class="total-bar-label">전체 합계</div>
+
+    <div
+      class="total-bar"
+      style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)"
+    >
+      <div class="total-bar-label">분양가 포함 전체 합계</div>
       <div class="total-bar-value" id="item-total-bar">-</div>
     </div>
+
   </div>
 
 </div>
 
-<!-- ── Item Modal ── -->
+<!-- ==================================================
+     항목 모달
+================================================== -->
+
 <div class="modal-overlay" id="item-modal">
   <div class="modal">
+
     <div class="modal-title">📋 항목 추가 / 편집</div>
+
     <input type="hidden" id="item-idx">
 
     <div class="form-group">
       <label class="form-label">항목명</label>
-      <input class="form-input" id="item-name" placeholder="예: 분양가, 냉장고, 취득세">
+      <input
+        class="form-input"
+        id="item-name"
+        placeholder="예: 냉장고, 취득세, 발코니 확장"
+      >
     </div>
+
     <div class="form-group">
       <label class="form-label">카테고리</label>
+
       <select class="form-input" id="item-category">
         <option value="분양가">분양가</option>
         <option value="옵션">옵션</option>
-        <option value="세금">세금/등기</option>
+        <option value="세금">세금 / 등기</option>
         <option value="가전">가전</option>
         <option value="가구">가구</option>
+        <option value="침구">침구</option>
         <option value="인테리어">인테리어</option>
         <option value="기타">기타</option>
       </select>
     </div>
+
     <div class="form-group">
-      <label class="form-label">전체 금액 (원) <span id="inst-ref-label" style="font-size:0.75rem;font-weight:400;color:#8b92a5"></span></label>
-      <input class="form-input" id="item-amount" type="text" inputmode="numeric"
+      <label class="form-label">
+        전체 금액 · 원
+        <span
+          id="inst-ref-label"
+          style="font-weight:400;color:#b0b7c3"
+        ></span>
+      </label>
+
+      <input
+        class="form-input"
+        id="item-amount"
+        type="text"
+        inputmode="numeric"
         placeholder="예: 556,500,000"
-        oninput="onWonInput(this);onTotalAmtChange()">
+        oninput="onWonInput(this);onTotalAmtChange()"
+      >
     </div>
 
-    <!-- Simple (no installments) -->
     <div id="simple-fields">
+
       <div class="form-group">
-        <label class="form-label">납부/결제 예정일 <span style="font-weight:400;color:#b0b7c3">(선택 — 납부일정 자동 표시)</span></label>
-        <input class="form-input" id="item-duedate" type="date">
+        <label class="form-label">
+          납부 / 결제 예정일
+          <span style="font-weight:400;color:#b0b7c3">
+            선택사항
+          </span>
+        </label>
+
+        <input
+          class="form-input"
+          id="item-duedate"
+          type="date"
+        >
       </div>
+
       <div class="form-group">
         <label class="form-label">상태</label>
+
         <select class="form-input" id="item-status">
           <option value="pending">미결제 / 미납</option>
           <option value="due">납부 / 결제 예정</option>
-          <option value="paid">완료 (납부·구매)</option>
+          <option value="paid">완료</option>
         </select>
       </div>
+
     </div>
 
     <div class="form-group">
-      <label class="form-label">구매처 <span style="font-weight:400;color:#b0b7c3">(선택)</span></label>
-      <input class="form-input" id="item-vendor" placeholder="예: 삼성스토어, 현대백화점, 쿠팡">
+      <label class="form-label">
+        구매처
+        <span style="font-weight:400;color:#b0b7c3">
+          선택사항
+        </span>
+      </label>
+
+      <input
+        class="form-input"
+        id="item-vendor"
+        placeholder="예: 삼성스토어, 쿠팡, 현대백화점"
+      >
     </div>
+
     <div class="form-group">
       <label class="form-label">메모</label>
-      <input class="form-input" id="item-memo" placeholder="메모">
+
+      <input
+        class="form-input"
+        id="item-memo"
+        placeholder="제품명, 계약 조건, 설치사항 등"
+      >
     </div>
 
-    <!-- Installment section -->
     <div class="inst-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:0.88rem;font-weight:700;color:#1a1a2e">분할 납부 일정</div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#6366f1;cursor:pointer;font-weight:600;user-select:none">
-          <input type="checkbox" id="use-inst" onchange="toggleInstSection()">
+
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          margin-bottom:10px;
+        "
+      >
+        <div style="font-size:0.87rem;font-weight:800">
+          분할 납부 일정
+        </div>
+
+        <label
+          style="
+            display:flex;
+            align-items:center;
+            gap:6px;
+            color:#6366f1;
+            font-size:0.8rem;
+            font-weight:700;
+            cursor:pointer;
+          "
+        >
+          <input
+            type="checkbox"
+            id="use-inst"
+            onchange="toggleInstSection()"
+          >
           분할 납부 사용
         </label>
       </div>
+
       <div id="inst-area" style="display:none">
-        <div style="font-size:0.75rem;color:#8b92a5;margin-bottom:10px;line-height:1.55;padding:8px 10px;background:#f0f2f5;border-radius:8px">
-          💡 <strong>비율(%)</strong>을 입력하면 전체 금액 기준으로 금액이 자동 계산됩니다. 금액을 직접 수정하면 비율이 역산됩니다.<br>
-          납부일을 입력한 항목은 납부일정 타임라인에 <strong>항목명 → 제목</strong> 형식으로 표시됩니다.
+
+        <div
+          style="
+            margin-bottom:10px;
+            padding:8px 10px;
+            border-radius:8px;
+            background:#f0f2f5;
+            color:#8b92a5;
+            font-size:0.73rem;
+            line-height:1.55;
+          "
+        >
+          비율을 입력하면 전체 금액을 기준으로 회차 금액이 자동 계산됩니다.
+          회차별 금액도 모두 원 단위로 입력합니다.
         </div>
+
         <div id="inst-rows"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <button type="button" class="btn-add" onclick="addInstRow()">+ 분할 추가</button>
-          <span id="inst-total-label" style="font-size:0.82rem;color:#6366f1;font-weight:700"></span>
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            margin-top:8px;
+          "
+        >
+          <button
+            type="button"
+            class="btn-add"
+            onclick="addInstRow()"
+          >
+            + 분할 추가
+          </button>
+
+          <span
+            id="inst-total-label"
+            style="
+              color:#6366f1;
+              font-size:0.8rem;
+              font-weight:800;
+            "
+          ></span>
         </div>
+
       </div>
+
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeModal('item-modal')">취소</button>
-      <button class="btn btn-danger" id="item-delete-btn" onclick="deleteItem()" style="display:none">삭제</button>
-      <button class="btn btn-primary" onclick="saveItem()">저장</button>
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal('item-modal')"
+      >
+        취소
+      </button>
+
+      <button
+        class="btn btn-danger"
+        id="item-delete-btn"
+        onclick="deleteItem()"
+        style="display:none"
+      >
+        삭제
+      </button>
+
+      <button
+        class="btn btn-primary"
+        onclick="saveItem()"
+      >
+        저장
+      </button>
     </div>
+
   </div>
 </div>
 
-<!-- ── Todo Modal ── -->
+<!-- ==================================================
+     할 일 모달
+================================================== -->
+
 <div class="modal-overlay" id="todo-modal">
   <div class="modal">
+
     <div class="modal-title">✅ 할 일 항목</div>
+
     <input type="hidden" id="todo-idx">
-    <div class="form-group"><label class="form-label">항목명</label><input class="form-input" id="todo-name"></div>
-    <div class="form-group"><label class="form-label">메모</label><input class="form-input" id="todo-note"></div>
-    <div class="form-group"><label class="form-label">카테고리</label><input class="form-input" id="todo-category" placeholder="예: 시공, 환경, 생활"></div>
-    <div class="form-group"><label class="form-label">우선순위</label>
+
+    <div class="form-group">
+      <label class="form-label">항목명</label>
+      <input class="form-input" id="todo-name">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="todo-note">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">카테고리</label>
+      <input
+        class="form-input"
+        id="todo-category"
+        placeholder="예: 시공, 환경, 생활, 행정"
+      >
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">우선순위</label>
+
       <select class="form-input" id="todo-priority">
         <option value="high">높음 🔴</option>
         <option value="mid">중간 🟡</option>
         <option value="low">낮음 ⚪</option>
       </select>
     </div>
+
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeModal('todo-modal')">취소</button>
-      <button class="btn btn-danger" id="todo-delete-btn" onclick="deleteTodo()" style="display:none">삭제</button>
-      <button class="btn btn-primary" onclick="saveTodo()">저장</button>
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal('todo-modal')"
+      >
+        취소
+      </button>
+
+      <button
+        class="btn btn-danger"
+        id="todo-delete-btn"
+        onclick="deleteTodo()"
+        style="display:none"
+      >
+        삭제
+      </button>
+
+      <button
+        class="btn btn-primary"
+        onclick="saveTodo()"
+      >
+        저장
+      </button>
     </div>
+
   </div>
 </div>
 
-<!-- ── Loan Modal ── -->
+<!-- ==================================================
+     대출 모달
+================================================== -->
+
 <div class="modal-overlay" id="loan-modal">
   <div class="modal">
+
     <div class="modal-title">🏦 대출 추가 / 편집</div>
+
     <input type="hidden" id="loan-idx">
+    <input type="hidden" id="loan-type" value="equal-total">
 
     <div class="form-group">
       <label class="form-label">대출명</label>
-      <input class="form-input" id="loan-name" placeholder="예: 주택담보대출, 디딤돌대출, 전세대출">
+
+      <input
+        class="form-input"
+        id="loan-name"
+        placeholder="예: 우리은행 입주자금대출"
+      >
     </div>
 
     <div class="form-group">
       <label class="form-label">상환 방식</label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px" id="loan-type-btns">
-        <div class="loan-type-btn" data-type="equal-total" onclick="selectLoanType('equal-total')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
-          <div style="font-size:1.1rem;margin-bottom:4px">⚖️</div>
-          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">원리금균등</div>
-          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">매월 동일 금액</div>
+
+      <div class="loan-type-select">
+
+        <div
+          class="loan-type-btn"
+          data-type="equal-total"
+          onclick="selectLoanType('equal-total')"
+        >
+          <div style="font-size:1.1rem">⚖️</div>
+          <div style="font-size:0.76rem;font-weight:800;margin-top:4px">
+            원리금균등
+          </div>
+          <div style="font-size:0.65rem;color:#8b92a5;margin-top:2px">
+            매월 동일 금액
+          </div>
         </div>
-        <div class="loan-type-btn" data-type="equal-princ" onclick="selectLoanType('equal-princ')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
-          <div style="font-size:1.1rem;margin-bottom:4px">📉</div>
-          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">원금균등</div>
-          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">매월 이자 감소</div>
+
+        <div
+          class="loan-type-btn"
+          data-type="equal-princ"
+          onclick="selectLoanType('equal-princ')"
+        >
+          <div style="font-size:1.1rem">📉</div>
+          <div style="font-size:0.76rem;font-weight:800;margin-top:4px">
+            원금균등
+          </div>
+          <div style="font-size:0.65rem;color:#8b92a5;margin-top:2px">
+            매월 납부액 감소
+          </div>
         </div>
-        <div class="loan-type-btn" data-type="bullet" onclick="selectLoanType('bullet')" style="border:2px solid #e5e7ef;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s">
-          <div style="font-size:1.1rem;margin-bottom:4px">💸</div>
-          <div style="font-size:0.78rem;font-weight:700;color:#1a1a2e">만기일시</div>
-          <div style="font-size:0.68rem;color:#8b92a5;margin-top:2px">이자만 납부</div>
+
+        <div
+          class="loan-type-btn"
+          data-type="bullet"
+          onclick="selectLoanType('bullet')"
+        >
+          <div style="font-size:1.1rem">💸</div>
+          <div style="font-size:0.76rem;font-weight:800;margin-top:4px">
+            만기일시
+          </div>
+          <div style="font-size:0.65rem;color:#8b92a5;margin-top:2px">
+            이자만 납부
+          </div>
         </div>
+
       </div>
-      <input type="hidden" id="loan-type" value="equal-total">
     </div>
 
     <div class="form-group">
-      <label class="form-label">대출 금액 (원)</label>
-      <input class="form-input" id="loan-amount" type="text" inputmode="numeric"
-        placeholder="예: 300,000,000"
-        oninput="onWonInput(this);calcLoanPreview()">
+      <label class="form-label">대출 금액 · 원</label>
+
+      <input
+        class="form-input"
+        id="loan-amount"
+        type="text"
+        inputmode="numeric"
+        placeholder="예: 374,000,000"
+        oninput="onWonInput(this);calcLoanPreview()"
+      >
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">연 금리 (%)</label>
-        <input class="form-input" id="loan-rate" type="number" step="0.01" placeholder="예: 3.5"
-          oninput="calcLoanPreview()">
+    <div class="form-grid-2">
+
+      <div class="form-group">
+        <label class="form-label">연 금리 · %</label>
+
+        <input
+          class="form-input"
+          id="loan-rate"
+          type="number"
+          step="0.001"
+          placeholder="예: 3.69"
+          oninput="calcLoanPreview()"
+        >
       </div>
-      <div class="form-group" style="margin-bottom:0">
+
+      <div class="form-group">
         <label class="form-label">대출 실행일</label>
-        <input class="form-input" id="loan-start" type="date" onchange="calcLoanPreview()">
+
+        <input
+          class="form-input"
+          id="loan-start"
+          type="date"
+          onchange="onLoanStartChange();calcLoanPreview()"
+        >
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">거치기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 이자만 납부 기간</span></label>
-        <input class="form-input" id="loan-grace" type="number" min="0" placeholder="0" value="0"
-          oninput="calcLoanPreview()">
-      </div>
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">상환기간 (개월) <span style="font-weight:400;color:#b0b7c3">— 거치 후 원금 분할기간</span></label>
-        <input class="form-input" id="loan-period" type="number" min="1" placeholder="예: 360 (30년)"
-          oninput="calcLoanPreview()">
-      </div>
+
     </div>
 
-    <!-- 미리보기 -->
-    <div id="loan-preview" style="display:none;margin-top:16px;background:linear-gradient(135deg,#0d9488,#14b8a6);border-radius:12px;padding:14px 16px;color:white">
-      <div style="font-size:0.78rem;opacity:0.8;margin-bottom:8px">📊 월 예상 상환액</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <div style="font-size:0.72rem;opacity:0.75" id="preview-grace-label">거치기간 중</div>
-          <div style="font-size:1.1rem;font-weight:800" id="preview-grace-amt">-</div>
-          <div style="font-size:0.7rem;opacity:0.7">이자만 납부</div>
-        </div>
-        <div>
-          <div style="font-size:0.72rem;opacity:0.75" id="preview-repay-label">상환기간 중</div>
-          <div style="font-size:1.1rem;font-weight:800" id="preview-repay-amt">-</div>
-          <div style="font-size:0.7rem;opacity:0.7" id="preview-repay-note"></div>
-        </div>
+    <div class="form-grid-2">
+
+      <div class="form-group">
+        <label class="form-label">매월 납부일</label>
+
+        <input
+          class="form-input"
+          id="loan-payment-day"
+          type="number"
+          min="1"
+          max="31"
+          placeholder="예: 20"
+          oninput="calcLoanPreview()"
+        >
       </div>
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.25);font-size:0.78rem;opacity:0.85" id="preview-summary"></div>
+
+      <div class="form-group">
+        <label class="form-label">
+          거치기간 · 개월
+        </label>
+
+        <input
+          class="form-input"
+          id="loan-grace"
+          type="number"
+          min="0"
+          value="0"
+          placeholder="예: 12"
+          oninput="calcLoanPreview()"
+        >
+      </div>
+
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">
+        상환기간 · 개월
+        <span style="font-weight:400;color:#b0b7c3">
+          거치기간 종료 후 원금 상환기간
+        </span>
+      </label>
+
+      <input
+        class="form-input"
+        id="loan-period"
+        type="number"
+        min="1"
+        placeholder="예: 360"
+        oninput="calcLoanPreview()"
+      >
+    </div>
+
+    <div class="loan-preview" id="loan-preview">
+
+      <div style="font-size:0.76rem;opacity:0.8;margin-bottom:8px">
+        📊 월 예상 납부액
+      </div>
+
+      <div class="loan-preview-grid">
+
+        <div>
+          <div class="preview-label" id="preview-grace-label">
+            거치기간 중
+          </div>
+
+          <div class="preview-value" id="preview-grace-amt">
+            -
+          </div>
+
+          <div class="preview-note">
+            원금 감소 없음
+          </div>
+        </div>
+
+        <div>
+          <div class="preview-label" id="preview-repay-label">
+            원금 상환기간 중
+          </div>
+
+          <div class="preview-value" id="preview-repay-amt">
+            -
+          </div>
+
+          <div class="preview-note" id="preview-repay-note">
+            -
+          </div>
+        </div>
+
+      </div>
+
+      <div class="preview-summary" id="preview-summary"></div>
+
     </div>
 
     <div class="form-group" style="margin-top:14px">
       <label class="form-label">메모</label>
-      <input class="form-input" id="loan-memo" placeholder="은행명, 조건 등">
+
+      <input
+        class="form-input"
+        id="loan-memo"
+        placeholder="은행명, 금리 조건, 우대금리 등"
+      >
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeModal('loan-modal')">취소</button>
-      <button class="btn btn-danger" id="loan-delete-btn" onclick="deleteLoan()" style="display:none">삭제</button>
-      <button class="btn btn-primary" onclick="saveLoan()">저장</button>
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal('loan-modal')"
+      >
+        취소
+      </button>
+
+      <button
+        class="btn btn-danger"
+        id="loan-delete-btn"
+        onclick="deleteLoan()"
+        style="display:none"
+      >
+        삭제
+      </button>
+
+      <button
+        class="btn btn-primary"
+        onclick="saveLoan()"
+      >
+        저장
+      </button>
     </div>
+
   </div>
 </div>
 
-<!-- ── Date Modal ── -->
+<!-- ==================================================
+     입주일 모달
+================================================== -->
+
 <div class="modal-overlay" id="date-modal">
   <div class="modal">
+
     <div class="modal-title">🏠 입주 예정일 설정</div>
-    <div class="form-group"><label class="form-label">입주 예정일</label><input class="form-input" id="move-date-input" type="date"></div>
-    <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeModal('date-modal')">취소</button>
-      <button class="btn btn-primary" onclick="saveMoveDate()">저장</button>
+
+    <div class="form-group">
+      <label class="form-label">입주 예정일</label>
+
+      <input
+        class="form-input"
+        id="move-date-input"
+        type="date"
+      >
     </div>
+
+    <div class="btn-row">
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal('date-modal')"
+      >
+        취소
+      </button>
+
+      <button
+        class="btn btn-primary"
+        onclick="saveMoveDate()"
+      >
+        저장
+      </button>
+    </div>
+
   </div>
 </div>
 
 <script>
-// ════════════════════════════════════════
-//  FIREBASE
-// ════════════════════════════════════════
+/* ==================================================
+   Firebase
+================================================== */
+
 const firebaseConfig = {
   apiKey: "AIzaSyDusMr60yDPeHfIV99kpJVK1aC7BrwKIDE",
   authDomain: "house-taedong.firebaseapp.com",
@@ -591,1157 +2210,3972 @@ const firebaseConfig = {
   messagingSenderId: "445689430629",
   appId: "1:445689430629:web:2a9d66a0a34478a0d27c8c"
 };
+
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.firestore();
-const DOC_REF = db.collection('dashboard').doc('main');
+const DOC_REF = db.collection("dashboard").doc("main");
+
+const CURRENT_DATA_VERSION = 2;
 
 let data = null;
 let saveTimer = null;
 
-// ════════════════════════════════════════
-//  CATEGORY STYLING
-// ════════════════════════════════════════
-const CAT_COLOR = { '분양가':'#6366f1','옵션':'#8b5cf6','세금':'#ef4444','가전':'#0ea5e9','가구':'#f97316','인테리어':'#22c55e','기타':'#8b92a5','침구':'#ec4899' };
-const CAT_BG    = { '분양가':'#eef2ff','옵션':'#f3e8ff','세금':'#fee2e2','가전':'#e0f2fe','가구':'#fff3e8','인테리어':'#f0fdf4','기타':'#f0f2f5','침구':'#fdf2f8' };
-const CAT_ORDER = ['분양가','옵션','세금','가전','가구','침구','인테리어','기타'];
+let activeItemTab = "전체";
+let activeTodoTab = "전체";
 
-// ════════════════════════════════════════
-//  FORMAT HELPERS
-// ════════════════════════════════════════
+let calendarCursor = new Date();
+calendarCursor.setDate(1);
 
-/**
- * 쉼표+소수점1자리 기준 포맷 (만원 단위, 목록/카드용)
- * e.g. 5565 → "5,565만원"  |  482.9 → "482.9만원"  |  55650 → "5억 5,650만원"
- */
-function fmt(n) {
-  n = Number(n) || 0;
-  if (n === 0) return '0만원';
-  // 억 단위 이상
-  if (n >= 10000) {
-    const eok = Math.floor(n / 10000);
-    const man = Math.round((n % 10000) * 10) / 10;
-    if (man > 0) {
-      return `${eok.toLocaleString('ko-KR')}억 ${man.toLocaleString('ko-KR', {maximumFractionDigits:1})}만원`;
-    }
-    return `${eok.toLocaleString('ko-KR')}억`;
+/* ==================================================
+   카테고리 설정
+================================================== */
+
+const CAT_COLOR = {
+  분양가: "#6366f1",
+  옵션: "#8b5cf6",
+  세금: "#ef4444",
+  가전: "#0ea5e9",
+  가구: "#f97316",
+  침구: "#ec4899",
+  인테리어: "#22c55e",
+  기타: "#8b92a5"
+};
+
+const CAT_ORDER = [
+  "분양가",
+  "옵션",
+  "세금",
+  "가전",
+  "가구",
+  "침구",
+  "인테리어",
+  "기타"
+];
+
+const LOAN_TYPE_LABEL = {
+  "equal-total": "원리금균등",
+  "equal-princ": "원금균등",
+  bullet: "만기일시"
+};
+
+const LOAN_TYPE_CLS = {
+  "equal-total": "loan-type-equal-total",
+  "equal-princ": "loan-type-equal-princ",
+  bullet: "loan-type-bullet"
+};
+
+/* ==================================================
+   공통 유틸리티
+================================================== */
+
+function esc(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function parseWon(value) {
+  return Math.round(
+    Number(String(value || "").replace(/[^0-9.-]/g, "")) || 0
+  );
+}
+
+function fmtWonInput(value) {
+  const amount = Math.round(Number(value) || 0);
+
+  return amount > 0
+    ? amount.toLocaleString("ko-KR")
+    : "";
+}
+
+function onWonInput(element) {
+  const selectionStart = element.selectionStart;
+  const oldLength = element.value.length;
+
+  const raw = element.value.replace(/[^0-9]/g, "");
+
+  if (!raw) {
+    element.value = "";
+    return;
   }
-  // 만원 단위 (소수점 1자리, 3자리 쉼표)
-  const rounded = Math.round(n * 10) / 10;
-  return rounded.toLocaleString('ko-KR', {maximumFractionDigits:1}) + '만원';
+
+  const amount = parseInt(raw, 10);
+
+  element.value = amount.toLocaleString("ko-KR");
+
+  const newLength = element.value.length;
+  const nextSelection = Math.max(
+    0,
+    selectionStart + newLength - oldLength
+  );
+
+  element.setSelectionRange(
+    nextSelection,
+    nextSelection
+  );
 }
 
-/**
- * KPI 카드용 — 원 단위 그대로 표기 (3자리 쉼표)
- * e.g. 55650 (만원) → "556,500,000원"  |  482.9 → "4,829,000원"
- */
-function fmtFull(n) {
-  n = Number(n) || 0;
-  if (n === 0) return '0원';
-  const won = Math.round(n * 10000);
-  return won.toLocaleString('ko-KR') + '원';
+function fmtFull(value) {
+  const amount = Math.round(Number(value) || 0);
+
+  return amount.toLocaleString("ko-KR") + "원";
 }
 
-/** 날짜 포맷 */
-function fmtDate(d) {
-  if (!d) return '';
-  const p = d.split('-');
-  return `${p[0]}.${p[1]}.${p[2]}`;
+function fmtCompact(value) {
+  const amount = Math.round(Number(value) || 0);
+
+  if (amount === 0) {
+    return "0원";
+  }
+
+  if (amount >= 100000000) {
+    const eok = Math.floor(amount / 100000000);
+    const man = Math.floor(
+      (amount % 100000000) / 10000
+    );
+
+    if (man > 0) {
+      return (
+        eok.toLocaleString("ko-KR") +
+        "억 " +
+        man.toLocaleString("ko-KR") +
+        "만원"
+      );
+    }
+
+    return eok.toLocaleString("ko-KR") + "억원";
+  }
+
+  if (amount >= 10000) {
+    const man = Math.floor(amount / 10000);
+    const won = amount % 10000;
+
+    if (won > 0) {
+      return (
+        man.toLocaleString("ko-KR") +
+        "만 " +
+        won.toLocaleString("ko-KR") +
+        "원"
+      );
+    }
+
+    return man.toLocaleString("ko-KR") + "만원";
+  }
+
+  return amount.toLocaleString("ko-KR") + "원";
 }
 
-/** HTML 이스케이프 */
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtCalendarAmount(value) {
+  const amount = Math.round(Number(value) || 0);
 
-/** 쉼표 제거 후 숫자 파싱 (만원 입력용) */
-function parseAmt(s) {
-  return Number(String(s || '').replace(/,/g, '')) || 0;
+  if (amount >= 100000000) {
+    return (
+      (amount / 100000000)
+        .toLocaleString("ko-KR", {
+          maximumFractionDigits: 1
+        }) + "억"
+    );
+  }
+
+  if (amount >= 10000) {
+    return (
+      Math.round(amount / 10000)
+        .toLocaleString("ko-KR") + "만"
+    );
+  }
+
+  return amount.toLocaleString("ko-KR") + "원";
 }
 
-/** 쉼표 제거 후 정수 파싱 (원 입력용) */
-function parseWon(s) {
-  return Math.round(Number(String(s || '').replace(/,/g, '')) || 0);
+function fmtDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const parts = value.split("-");
+
+  if (parts.length !== 3) {
+    return value;
+  }
+
+  return `${parts[0]}.${parts[1]}.${parts[2]}`;
 }
 
-/** 원 단위 입력 포맷 (정수 쉼표) — item-amount 전용 */
-function onWonInput(el) {
-  const sel = el.selectionStart;
-  const oldLen = el.value.length;
-  const raw = el.value.replace(/[^0-9]/g, '');
-  if (!raw) { el.value = ''; return; }
-  const n = parseInt(raw, 10);
-  el.value = n.toLocaleString('ko-KR');
-  const newLen = el.value.length;
-  const newSel = Math.max(0, sel + (newLen - oldLen));
-  el.setSelectionRange(newSel, newSel);
+function localDate(value) {
+  if (value instanceof Date) {
+    const copied = new Date(value);
+    copied.setHours(0, 0, 0, 0);
+    return copied;
+  }
+
+  const parts = String(value || "").split("-");
+
+  if (parts.length !== 3) {
+    const parsed = new Date(value);
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  }
+
+  return new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2]),
+    0,
+    0,
+    0,
+    0
+  );
 }
 
-/** 원 → 인풋 표시용 문자열 */
-function fmtWonInput(won) {
-  const n = Math.round(Number(won) || 0);
-  return n > 0 ? n.toLocaleString('ko-KR') : '';
+function ymd(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
-/** 입력용 포맷 (쉼표, 소수점1자리) — 분할납부 금액용 */
-function fmtInput(n) {
-  n = Math.round((Number(n) || 0) * 10) / 10;
-  if (n === 0) return '';
-  return n.toLocaleString('ko-KR', {maximumFractionDigits:1});
+function addMonthsClamped(
+  sourceDate,
+  monthOffset,
+  paymentDay
+) {
+  const firstDay = new Date(
+    sourceDate.getFullYear(),
+    sourceDate.getMonth() + monthOffset,
+    1
+  );
+
+  const lastDay = new Date(
+    firstDay.getFullYear(),
+    firstDay.getMonth() + 1,
+    0
+  ).getDate();
+
+  firstDay.setDate(
+    Math.min(
+      Number(paymentDay) || sourceDate.getDate(),
+      lastDay
+    )
+  );
+
+  firstDay.setHours(0, 0, 0, 0);
+
+  return firstDay;
 }
 
-/** 분할납부 금액 input focus/blur */
-function amtFocus(el) {
-  const v = parseAmt(el.value);
-  el.value = v > 0 ? String(v) : '';
-}
-function amtBlur(el) {
-  const v = parseAmt(el.value);
-  el.value = fmtInput(v);
-}
-
-// ════════════════════════════════════════
-//  SCROLL TO SECTION
-// ════════════════════════════════════════
 function scrollToSection(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.scrollIntoView({ behavior:'smooth', block:'start' });
-  // 깜빡임 효과
-  el.classList.remove('section-highlight');
-  void el.offsetWidth;
-  el.classList.add('section-highlight');
-  setTimeout(() => el.classList.remove('section-highlight'), 900);
+  const element = document.getElementById(id);
+
+  if (!element) {
+    return;
+  }
+
+  element.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  element.classList.remove("section-highlight");
+
+  void element.offsetWidth;
+
+  element.classList.add("section-highlight");
+
+  setTimeout(() => {
+    element.classList.remove("section-highlight");
+  }, 900);
 }
 
-// ════════════════════════════════════════
-//  ITEM HELPERS (installment-aware)
-// ════════════════════════════════════════
-function effectiveAmt(item) {
-  if (item.installments && item.installments.length > 0)
-    return item.installments.reduce((s, inst) => s + (Number(inst.amount) || 0), 0);
-  return Number(item.amount) || 0;
-}
-function paidAmt(item) {
-  if (item.installments && item.installments.length > 0)
-    return item.installments.filter(i => i.status === 'paid').reduce((s, i) => s + (Number(i.amount) || 0), 0);
-  return item.status === 'paid' ? (Number(item.amount) || 0) : 0;
-}
-function dueAmt(item) {
-  if (item.installments && item.installments.length > 0)
-    return item.installments.filter(i => i.status === 'due').reduce((s, i) => s + (Number(i.amount) || 0), 0);
-  return item.status === 'due' ? (Number(item.amount) || 0) : 0;
-}
-function derivedStatus(item) {
-  if (!item.installments || !item.installments.length) return item.status || 'pending';
-  const total = item.installments.length;
-  const paid  = item.installments.filter(i => i.status === 'paid').length;
-  if (paid === total) return 'paid';
-  if (paid > 0)       return 'partial';
-  if (item.installments.some(i => i.status === 'due')) return 'due';
-  return 'pending';
-}
-function statusBadge(st) {
-  if (st === 'paid')    return '<span class="badge-paid">✅ 완료</span>';
-  if (st === 'partial') return '<span class="badge-partial">⬤ 부분완료</span>';
-  if (st === 'due')     return '<span class="badge-due">🕐 예정</span>';
-  return '<span class="badge-pending">○ 미결제</span>';
-}
+/* ==================================================
+   기본 데이터
+================================================== */
 
-// ════════════════════════════════════════
-//  DEFAULT DATA
-// ════════════════════════════════════════
 function defaultItems() {
   return [
-    { name:'분양가', category:'분양가', amount:0, status:'pending', dueDate:'', memo:'',
-      installments:[
-        {title:'계약금',     pct:10, amount:0, date:'', status:'pending'},
-        {title:'중도금 1차', pct:10, amount:0, date:'', status:'pending'},
-        {title:'잔금',       pct:60, amount:0, date:'', status:'pending'},
+    {
+      name: "분양가",
+      category: "분양가",
+      amount: 0,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: [
+        {
+          title: "계약금",
+          pct: 10,
+          amount: 0,
+          date: "",
+          status: "pending"
+        },
+        {
+          title: "중도금 1차",
+          pct: 10,
+          amount: 0,
+          date: "",
+          status: "pending"
+        },
+        {
+          title: "잔금",
+          pct: 60,
+          amount: 0,
+          date: "",
+          status: "pending"
+        }
       ]
     },
-    {name:'발코니 확장',              category:'옵션',     amount:482.9, status:'pending', dueDate:'', memo:'VAT 포함'},
-    {name:'시스템에어컨 (LG 프리미엄)',category:'옵션',     amount:690,   status:'pending', dueDate:'', memo:'VAT 포함, 전실 4대'},
-    {name:'추가선택품목 III',          category:'옵션',     amount:245,   status:'pending', dueDate:'', memo:'주방벽+거실마감+탄성코트'},
-    {name:'취득세',                    category:'세금',     amount:0,     status:'pending', dueDate:'', memo:''},
-    {name:'냉장고',                    category:'가전',     amount:200,   status:'pending', dueDate:'', memo:''},
-    {name:'세탁기/건조기',             category:'가전',     amount:200,   status:'pending', dueDate:'', memo:''},
-    {name:'TV',                        category:'가전',     amount:150,   status:'pending', dueDate:'', memo:''},
-    {name:'공기청정기',                category:'가전',     amount:50,    status:'pending', dueDate:'', memo:''},
-    {name:'로봇청소기',                category:'가전',     amount:80,    status:'pending', dueDate:'', memo:''},
-    {name:'침대/매트리스',             category:'가구',     amount:250,   status:'pending', dueDate:'', memo:''},
-    {name:'소파',                      category:'가구',     amount:120,   status:'pending', dueDate:'', memo:''},
-    {name:'식탁/의자',                 category:'가구',     amount:80,    status:'pending', dueDate:'', memo:''},
-    {name:'커튼/블라인드',             category:'인테리어', amount:50,    status:'pending', dueDate:'', memo:''},
-    {name:'조명 교체',                 category:'인테리어', amount:30,    status:'pending', dueDate:'', memo:''},
-  ];
-}
-function defaultTodos() {
-  return [
-    {name:'붙박이장 시공 견적',     note:'최소 3개 업체 비교',      category:'시공', priority:'high', done:false},
-    {name:'새집증후군 베이크아웃',  note:'입주 전 2~3일 고온 환기', category:'환경', priority:'high', done:false},
-    {name:'줄눈 시공',              note:'타일 사이 오염 방지',     category:'시공', priority:'high', done:false},
-    {name:'냉장고장 제작/시공',     note:'냉장고 사이즈 확인 후',   category:'시공', priority:'high', done:false},
-    {name:'유리난간 설치 확인',     note:'시공 상태 및 안전 점검',  category:'시공', priority:'mid',  done:false},
-    {name:'인터넷 이전 신청',       note:'KT/SKT/LG 비교',         category:'생활', priority:'mid',  done:false},
-    {name:'가스 개통 신청',         note:'입주일 전 신청 필수',     category:'생활', priority:'high', done:false},
-    {name:'이사 업체 선정',         note:'사다리차 포함 여부 확인', category:'이사', priority:'high', done:false},
-    {name:'각종 주소 변경',         note:'은행, 보험, 병원 등',     category:'행정', priority:'mid',  done:false},
-    {name:'하자 점검 신청',         note:'입주 전 하자보수 점검',   category:'시공', priority:'high', done:false},
+    {
+      name: "발코니 확장",
+      category: "옵션",
+      amount: 4829000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "VAT 포함",
+      installments: null
+    },
+    {
+      name: "시스템에어컨",
+      category: "옵션",
+      amount: 6900000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "전실 4대",
+      installments: null
+    },
+    {
+      name: "취득세",
+      category: "세금",
+      amount: 0,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: null
+    },
+    {
+      name: "냉장고",
+      category: "가전",
+      amount: 2000000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: null
+    },
+    {
+      name: "세탁기 / 건조기",
+      category: "가전",
+      amount: 2000000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: null
+    },
+    {
+      name: "침대 / 매트리스",
+      category: "가구",
+      amount: 2500000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: null
+    },
+    {
+      name: "소파",
+      category: "가구",
+      amount: 1200000,
+      status: "pending",
+      dueDate: "",
+      vendor: "",
+      memo: "",
+      installments: null
+    }
   ];
 }
 
-// ════════════════════════════════════════
-//  MIGRATION
-// ════════════════════════════════════════
-function migrateFromOld(old) {
-  const items = [];
-  function guessCat(name, memo) {
-    const t = (name + ' ' + (memo||'')).toLowerCase();
-    if (/분양|계약금|중도금|잔금/.test(t)) return '분양가';
-    if (/발코니|에어컨|시스템|선택품목|옵션/.test(t)) return '옵션';
-    if (/취득세|등기|세금/.test(t)) return '세금';
-    if (/이자/.test(t)) return '기타';
-    return null;
-  }
-  (old.costs || []).forEach(c => {
-    items.push({name:c.name, category:guessCat(c.name,c.memo)||'기타', amount:Number(c.amount||0), status:c.status||'pending', dueDate:'', memo:c.memo||''});
-  });
-  (old.shops || []).forEach(s => {
-    items.push({name:s.name, category:s.category||'기타', amount:Number(s.price||0), status:s.bought?'paid':'pending', dueDate:'', memo:s.memo||''});
-  });
-  (old.payments || []).forEach(p => {
-    const pName = (p.desc||'').replace(/\s/g,'');
-    const match = items.find(i => { const n=i.name.replace(/\s/g,''); return n.includes(pName.slice(0,4))||pName.includes(n.slice(0,4)); });
-    if (match && !match.dueDate) {
-      match.dueDate = p.date||'';
-      if (p.status==='done' && match.status!=='paid') match.status='paid';
-      else if (p.status==='upcoming' && match.status==='pending') match.status='due';
-    } else if (!match && p.desc) {
-      items.push({name:p.desc, category:'분양가', amount:Number(p.amount||0), status:p.status==='done'?'paid':p.status==='upcoming'?'due':'pending', dueDate:p.date||'', memo:''});
+function defaultTodos() {
+  return [
+    {
+      name: "붙박이장 시공 견적",
+      note: "최소 3개 업체 비교",
+      category: "시공",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "새집증후군 베이크아웃",
+      note: "입주 전 2~3일 환기",
+      category: "환경",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "줄눈 시공",
+      note: "타일 사이 오염 방지",
+      category: "시공",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "냉장고장 제작 / 시공",
+      note: "냉장고 크기 확인",
+      category: "시공",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "인터넷 이전 신청",
+      note: "통신사 비교",
+      category: "생활",
+      priority: "mid",
+      done: false
+    },
+    {
+      name: "가스 개통 신청",
+      note: "입주일 전 신청",
+      category: "생활",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "이사 업체 선정",
+      note: "사다리차 포함 여부 확인",
+      category: "이사",
+      priority: "high",
+      done: false
+    },
+    {
+      name: "각종 주소 변경",
+      note: "은행, 보험, 병원 등",
+      category: "행정",
+      priority: "mid",
+      done: false
+    },
+    {
+      name: "하자 점검 신청",
+      note: "입주 전 점검",
+      category: "시공",
+      priority: "high",
+      done: false
     }
-  });
+  ];
+}
+
+/* ==================================================
+   기존 데이터 원 단위 마이그레이션
+================================================== */
+
+function migrateOldItemsStructure(oldData) {
+  const items = [];
+
+  if (Array.isArray(oldData.costs)) {
+    oldData.costs.forEach((cost) => {
+      items.push({
+        name: cost.name || "비용",
+        category: "기타",
+        amount: Number(cost.amount || 0),
+        status: cost.status || "pending",
+        dueDate: "",
+        vendor: "",
+        memo: cost.memo || "",
+        installments: null
+      });
+    });
+  }
+
+  if (Array.isArray(oldData.shops)) {
+    oldData.shops.forEach((shop) => {
+      items.push({
+        name: shop.name || "구매항목",
+        category: shop.category || "기타",
+        amount: Number(shop.price || 0),
+        status: shop.bought ? "paid" : "pending",
+        dueDate: "",
+        vendor: "",
+        memo: shop.memo || "",
+        installments: null
+      });
+    });
+  }
+
   return items;
 }
 
-function consolidateInstallments(items) {
-  const childPattern = /계약금|중도금|잔금/;
-  const parentIdx = items.findIndex(i => i.category==='분양가' && i.name==='분양가' && !(i.installments && i.installments.length));
-  if (parentIdx === -1) return false;
-  const parent = items[parentIdx];
-  const childIndices = [], insts = [];
-  items.forEach((item, idx) => {
-    if (idx === parentIdx) return;
-    if (item.category === '분양가' && childPattern.test(item.name)) {
-      const pctMatch = item.name.match(/(\d+(?:\.\d+)?)%/);
-      const pct = pctMatch ? Number(pctMatch[1]) : 0;
-      const title = item.name.replace(/\s*\(\d+(?:\.\d+)?%\)\s*/g,'').trim();
-      insts.push({ title, pct, amount:Number(item.amount||0), date:item.dueDate||'', status:item.status||'pending' });
-      childIndices.push(idx);
-    }
+function migrateAmountsToWon() {
+  if (
+    Number(data.dataVersion || 0) >=
+    CURRENT_DATA_VERSION
+  ) {
+    return false;
+  }
+
+  (data.items || []).forEach((item) => {
+    item.amount =
+      Math.round(Number(item.amount || 0) * 10000);
+
+    (item.installments || []).forEach((installment) => {
+      installment.amount =
+        Math.round(
+          Number(installment.amount || 0) * 10000
+        );
+    });
   });
-  if (!insts.length) return false;
-  insts.sort((a,b) => (a.date||'').localeCompare(b.date||''));
-  parent.installments = insts;
-  for (let i = childIndices.length - 1; i >= 0; i--) items.splice(childIndices[i], 1);
+
+  data.dataVersion = CURRENT_DATA_VERSION;
+
   return true;
 }
 
-// ════════════════════════════════════════
-//  FIRESTORE
-// ════════════════════════════════════════
+/* ==================================================
+   데이터 불러오기 및 저장
+================================================== */
+
 async function fetchData() {
   try {
-    const doc = await DOC_REF.get();
-    if (doc.exists) {
-      data = doc.data();
-      let needsSave = false;
-      if (!data.items) { data.items = migrateFromOld(data); needsSave = true; }
-      if (consolidateInstallments(data.items)) needsSave = true;
-      if (!data.todos) { data.todos = defaultTodos(); needsSave = true; }
-      if (!data.loans) { data.loans = []; needsSave = true; }
-      if (!data.moveDate) { data.moveDate = '2026-08-15'; needsSave = true; }
-      if (needsSave) await DOC_REF.set(data);
+    const snapshot = await DOC_REF.get();
+
+    let needsSave = false;
+
+    if (snapshot.exists) {
+      data = snapshot.data();
+
+      if (!Array.isArray(data.items)) {
+        data.items = migrateOldItemsStructure(data);
+
+        if (!data.items.length) {
+          data.items = defaultItems();
+        }
+
+        needsSave = true;
+      }
+
+      if (!Array.isArray(data.todos)) {
+        data.todos = defaultTodos();
+        needsSave = true;
+      }
+
+      if (!Array.isArray(data.loans)) {
+        data.loans = [];
+        needsSave = true;
+      }
+
+      if (!data.moveDate) {
+        data.moveDate = "2026-08-15";
+        needsSave = true;
+      }
+
+      if (migrateAmountsToWon()) {
+        needsSave = true;
+      }
+
+      data.items.forEach((item) => {
+        if (item.vendor === undefined) {
+          item.vendor = "";
+        }
+
+        if (item.memo === undefined) {
+          item.memo = "";
+        }
+
+        if (item.installments === undefined) {
+          item.installments = null;
+        }
+      });
+
+      data.loans.forEach((loan) => {
+        if (!loan.paymentDay && loan.startDate) {
+          loan.paymentDay =
+            Number(loan.startDate.split("-")[2]) || 1;
+
+          needsSave = true;
+        }
+      });
+
+      if (needsSave) {
+        await DOC_REF.set(data);
+      }
     } else {
-      data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos(), loans:[] };
+      data = {
+        dataVersion: CURRENT_DATA_VERSION,
+        moveDate: "2026-08-15",
+        items: defaultItems(),
+        todos: defaultTodos(),
+        loans: []
+      };
+
       await DOC_REF.set(data);
     }
-  } catch(e) {
-    console.error('Firestore 오류:', e);
-    data = { moveDate:'2026-08-15', items:defaultItems(), todos:defaultTodos(), loans:[] };
+  } catch (error) {
+    console.error("Firestore 오류:", error);
+
+    data = {
+      dataVersion: CURRENT_DATA_VERSION,
+      moveDate: "2026-08-15",
+      items: defaultItems(),
+      todos: defaultTodos(),
+      loans: []
+    };
   }
 }
 
 function saveData() {
   clearTimeout(saveTimer);
-  showSave('saving','저장 중...');
+
+  showSaveStatus("saving", "저장 중...");
+
   saveTimer = setTimeout(async () => {
     try {
       await DOC_REF.set(data);
-      showSave('saved','저장됨 ✓');
-      setTimeout(hideSave, 2000);
-    } catch(e) {
-      showSave('error','저장 실패 ✕');
-      setTimeout(hideSave, 3000);
+
+      showSaveStatus("saved", "저장됨 ✓");
+
+      setTimeout(hideSaveStatus, 1800);
+    } catch (error) {
+      console.error(error);
+
+      showSaveStatus("error", "저장 실패 ✕");
+
+      setTimeout(hideSaveStatus, 3000);
     }
-  }, 800);
+  }, 500);
 }
-function showSave(type, msg) { const el=document.getElementById('save-status'); el.className=`show ${type}`; el.textContent=msg; }
-function hideSave() { document.getElementById('save-status').className=''; }
 
-// ════════════════════════════════════════
-//  D-DAY
-// ════════════════════════════════════════
+function showSaveStatus(type, text) {
+  const element = document.getElementById("save-status");
+
+  element.className = `show ${type}`;
+  element.textContent = text;
+}
+
+function hideSaveStatus() {
+  document.getElementById("save-status").className = "";
+}
+
+/* ==================================================
+   입주 D-day
+================================================== */
+
 function updateDday() {
-  const badge = document.getElementById('dday-badge');
-  if (!data.moveDate) { badge.textContent='입주일 미설정'; return; }
-  const today = new Date(); today.setHours(0,0,0,0);
-  const move  = new Date(data.moveDate); move.setHours(0,0,0,0);
-  const diff  = Math.round((move-today)/86400000);
-  badge.textContent = diff>0 ? `입주 D-${diff}` : diff===0 ? '🎉 입주일!' : `입주 D+${Math.abs(diff)}`;
-  badge.onclick = () => { document.getElementById('move-date-input').value=data.moveDate; openModal('date-modal'); };
-}
-async function saveMoveDate() {
-  data.moveDate = document.getElementById('move-date-input').value;
-  saveData(); closeModal('date-modal'); renderAll();
+  const badge = document.getElementById("dday-badge");
+
+  if (!data.moveDate) {
+    badge.textContent = "입주일 미설정";
+    return;
+  }
+
+  const today = localDate(new Date());
+  const moveDate = localDate(data.moveDate);
+
+  const difference = Math.round(
+    (moveDate - today) / 86400000
+  );
+
+  if (difference > 0) {
+    badge.textContent = `입주 D-${difference}`;
+  } else if (difference === 0) {
+    badge.textContent = "🎉 입주일!";
+  } else {
+    badge.textContent = `입주 D+${Math.abs(difference)}`;
+  }
+
+  badge.onclick = () => {
+    document.getElementById("move-date-input").value =
+      data.moveDate || "";
+
+    openModal("date-modal");
+  };
 }
 
-// ════════════════════════════════════════
-//  KPI
-// ════════════════════════════════════════
+function saveMoveDate() {
+  data.moveDate =
+    document.getElementById("move-date-input").value;
+
+  saveData();
+  closeModal("date-modal");
+  renderAll();
+}
+
+/* ==================================================
+   비용 항목 계산
+================================================== */
+
+function effectiveAmt(item) {
+  if (
+    Array.isArray(item.installments) &&
+    item.installments.length
+  ) {
+    return item.installments.reduce(
+      (sum, installment) =>
+        sum + Number(installment.amount || 0),
+      0
+    );
+  }
+
+  return Number(item.amount || 0);
+}
+
+function paidAmt(item) {
+  if (
+    Array.isArray(item.installments) &&
+    item.installments.length
+  ) {
+    return item.installments
+      .filter(
+        (installment) =>
+          installment.status === "paid"
+      )
+      .reduce(
+        (sum, installment) =>
+          sum + Number(installment.amount || 0),
+        0
+      );
+  }
+
+  return item.status === "paid"
+    ? Number(item.amount || 0)
+    : 0;
+}
+
+function dueAmt(item) {
+  if (
+    Array.isArray(item.installments) &&
+    item.installments.length
+  ) {
+    return item.installments
+      .filter(
+        (installment) =>
+          installment.status === "due"
+      )
+      .reduce(
+        (sum, installment) =>
+          sum + Number(installment.amount || 0),
+        0
+      );
+  }
+
+  return item.status === "due"
+    ? Number(item.amount || 0)
+    : 0;
+}
+
+function derivedStatus(item) {
+  if (
+    !Array.isArray(item.installments) ||
+    !item.installments.length
+  ) {
+    return item.status || "pending";
+  }
+
+  const totalCount = item.installments.length;
+
+  const paidCount = item.installments.filter(
+    (installment) =>
+      installment.status === "paid"
+  ).length;
+
+  if (paidCount === totalCount) {
+    return "paid";
+  }
+
+  if (paidCount > 0) {
+    return "partial";
+  }
+
+  if (
+    item.installments.some(
+      (installment) =>
+        installment.status === "due"
+    )
+  ) {
+    return "due";
+  }
+
+  return "pending";
+}
+
+function statusBadge(status) {
+  if (status === "paid") {
+    return '<span class="badge-paid">✅ 완료</span>';
+  }
+
+  if (status === "partial") {
+    return '<span class="badge-partial">⬤ 부분완료</span>';
+  }
+
+  if (status === "due") {
+    return '<span class="badge-due">🕐 예정</span>';
+  }
+
+  return '<span class="badge-pending">○ 미결제</span>';
+}
+
+/* ==================================================
+   대출 계산
+================================================== */
+
+function calcLoan(loan) {
+  const principal = Number(loan.amount || 0);
+  const annualRate = Number(loan.rate || 0);
+  const monthlyRate = annualRate / 12 / 100;
+  const repayMonths = Number(loan.period || 0);
+  const graceMonths = Number(loan.grace || 0);
+
+  if (
+    principal <= 0 ||
+    repayMonths <= 0
+  ) {
+    return null;
+  }
+
+  const graceMonthly = Math.round(
+    principal * monthlyRate
+  );
+
+  let repayMonthlyFirst = 0;
+  let repayMonthlyLast = 0;
+  let totalInterest = 0;
+
+  if (loan.type === "bullet") {
+    repayMonthlyFirst = graceMonthly;
+    repayMonthlyLast = graceMonthly;
+
+    totalInterest = Math.round(
+      graceMonthly *
+      (graceMonths + repayMonths)
+    );
+  } else if (loan.type === "equal-total") {
+    if (monthlyRate === 0) {
+      repayMonthlyFirst =
+        Math.round(principal / repayMonths);
+    } else {
+      const factor = Math.pow(
+        1 + monthlyRate,
+        repayMonths
+      );
+
+      repayMonthlyFirst = Math.round(
+        principal *
+        monthlyRate *
+        factor /
+        (factor - 1)
+      );
+    }
+
+    repayMonthlyLast = repayMonthlyFirst;
+
+    totalInterest = Math.max(
+      0,
+      Math.round(
+        graceMonthly * graceMonths +
+        repayMonthlyFirst * repayMonths -
+        principal
+      )
+    );
+  } else {
+    const monthlyPrincipal =
+      principal / repayMonths;
+
+    repayMonthlyFirst = Math.round(
+      monthlyPrincipal +
+      principal * monthlyRate
+    );
+
+    repayMonthlyLast = Math.round(
+      monthlyPrincipal +
+      monthlyPrincipal * monthlyRate
+    );
+
+    let interestTotal =
+      graceMonthly * graceMonths;
+
+    for (
+      let index = 0;
+      index < repayMonths;
+      index++
+    ) {
+      interestTotal +=
+        (principal -
+          index * monthlyPrincipal) *
+        monthlyRate;
+    }
+
+    totalInterest = Math.round(interestTotal);
+  }
+
+  return {
+    principal,
+    annualRate,
+    monthlyRate,
+    repayMonths,
+    graceMonths,
+    graceMonthly,
+    repayMonthlyFirst,
+    repayMonthlyLast,
+    totalInterest
+  };
+}
+
+function remainingPrincipalAfterRepayments(
+  loan,
+  completedRepayments
+) {
+  const result = calcLoan(loan);
+
+  if (!result) {
+    return Number(loan.amount || 0);
+  }
+
+  const principal = result.principal;
+  const repayMonths = result.repayMonths;
+
+  const completed = Math.max(
+    0,
+    Math.min(
+      repayMonths,
+      Number(completedRepayments || 0)
+    )
+  );
+
+  if (loan.type === "bullet") {
+    return completed >= repayMonths
+      ? 0
+      : principal;
+  }
+
+  if (loan.type === "equal-princ") {
+    return Math.max(
+      0,
+      Math.round(
+        principal -
+        principal /
+        repayMonths *
+        completed
+      )
+    );
+  }
+
+  if (result.monthlyRate === 0) {
+    return Math.max(
+      0,
+      Math.round(
+        principal -
+        principal /
+        repayMonths *
+        completed
+      )
+    );
+  }
+
+  const rate = result.monthlyRate;
+  const payment = result.repayMonthlyFirst;
+
+  const remaining = (
+    principal * Math.pow(1 + rate, completed) -
+    payment *
+    (
+      Math.pow(1 + rate, completed) - 1
+    ) /
+    rate
+  );
+
+  return Math.max(0, Math.round(remaining));
+}
+
+function loanPaymentDueDate(
+  loan,
+  paymentNumber
+) {
+  if (!loan.startDate) {
+    return null;
+  }
+
+  const startDate = localDate(loan.startDate);
+
+  const paymentDay =
+    Math.max(
+      1,
+      Math.min(
+        31,
+        Number(loan.paymentDay) ||
+        startDate.getDate()
+      )
+    );
+
+  return addMonthsClamped(
+    startDate,
+    paymentNumber,
+    paymentDay
+  );
+}
+
+function loanElapsedPayments(
+  loan,
+  referenceDate = new Date()
+) {
+  const result = calcLoan(loan);
+
+  if (
+    !result ||
+    !loan.startDate
+  ) {
+    return 0;
+  }
+
+  const reference = localDate(referenceDate);
+
+  const totalPaymentCount =
+    result.graceMonths +
+    result.repayMonths;
+
+  let elapsedPayments = 0;
+
+  for (
+    let paymentNumber = 1;
+    paymentNumber <= totalPaymentCount;
+    paymentNumber++
+  ) {
+    const dueDate = loanPaymentDueDate(
+      loan,
+      paymentNumber
+    );
+
+    if (
+      dueDate &&
+      dueDate <= reference
+    ) {
+      elapsedPayments++;
+    } else {
+      break;
+    }
+  }
+
+  return elapsedPayments;
+}
+
+function loanProgress(
+  loan,
+  referenceDate = new Date()
+) {
+  const originalPrincipal =
+    Number(loan.amount || 0);
+
+  const result = calcLoan(loan);
+
+  if (
+    !result ||
+    !loan.startDate
+  ) {
+    return {
+      originalPrincipal,
+      elapsedPayments: 0,
+      completedRepayments: 0,
+      repaidPrincipal: 0,
+      remainingPrincipal: originalPrincipal,
+      percent: 0
+    };
+  }
+
+  const elapsedPayments =
+    loanElapsedPayments(
+      loan,
+      referenceDate
+    );
+
+  const completedRepayments = Math.max(
+    0,
+    Math.min(
+      result.repayMonths,
+      elapsedPayments -
+      result.graceMonths
+    )
+  );
+
+  const remainingPrincipal =
+    remainingPrincipalAfterRepayments(
+      loan,
+      completedRepayments
+    );
+
+  const repaidPrincipal = Math.max(
+    0,
+    originalPrincipal -
+    remainingPrincipal
+  );
+
+  const percent =
+    originalPrincipal > 0
+      ? Math.min(
+          100,
+          Math.round(
+            repaidPrincipal /
+            originalPrincipal *
+            1000
+          ) / 10
+        )
+      : 0;
+
+  return {
+    originalPrincipal,
+    elapsedPayments,
+    completedRepayments,
+    repaidPrincipal,
+    remainingPrincipal,
+    percent
+  };
+}
+
+function loanPaymentForNumber(
+  loan,
+  paymentNumber
+) {
+  const result = calcLoan(loan);
+
+  if (!result) {
+    return {
+      total: 0,
+      principal: 0,
+      interest: 0,
+      phase: "invalid"
+    };
+  }
+
+  if (
+    paymentNumber <=
+    result.graceMonths
+  ) {
+    return {
+      total: result.graceMonthly,
+      principal: 0,
+      interest: result.graceMonthly,
+      phase: "grace"
+    };
+  }
+
+  const repaymentNumber =
+    paymentNumber -
+    result.graceMonths;
+
+  if (
+    repaymentNumber < 1 ||
+    repaymentNumber >
+    result.repayMonths
+  ) {
+    return {
+      total: 0,
+      principal: 0,
+      interest: 0,
+      phase: "done"
+    };
+  }
+
+  if (loan.type === "bullet") {
+    const principal =
+      repaymentNumber ===
+      result.repayMonths
+        ? result.principal
+        : 0;
+
+    return {
+      total:
+        result.graceMonthly +
+        principal,
+      principal,
+      interest: result.graceMonthly,
+      phase: "repay"
+    };
+  }
+
+  const remainingBefore =
+    remainingPrincipalAfterRepayments(
+      loan,
+      repaymentNumber - 1
+    );
+
+  const interest = Math.round(
+    remainingBefore *
+    result.monthlyRate
+  );
+
+  if (loan.type === "equal-princ") {
+    const normalPrincipal =
+      result.principal /
+      result.repayMonths;
+
+    const principal =
+      repaymentNumber ===
+      result.repayMonths
+        ? remainingBefore
+        : Math.round(normalPrincipal);
+
+    return {
+      total: principal + interest,
+      principal,
+      interest,
+      phase: "repay"
+    };
+  }
+
+  const principal =
+    repaymentNumber ===
+    result.repayMonths
+      ? remainingBefore
+      : Math.max(
+          0,
+          result.repayMonthlyFirst -
+          interest
+        );
+
+  return {
+    total: principal + interest,
+    principal,
+    interest,
+    phase: "repay"
+  };
+}
+
+function nextLoanPayment(loan) {
+  const result = calcLoan(loan);
+
+  if (
+    !result ||
+    !loan.startDate
+  ) {
+    return null;
+  }
+
+  const elapsed =
+    loanElapsedPayments(loan);
+
+  const nextNumber = elapsed + 1;
+
+  const totalCount =
+    result.graceMonths +
+    result.repayMonths;
+
+  if (nextNumber > totalCount) {
+    return null;
+  }
+
+  return {
+    paymentNumber: nextNumber,
+    dueDate: loanPaymentDueDate(
+      loan,
+      nextNumber
+    ),
+    ...loanPaymentForNumber(
+      loan,
+      nextNumber
+    )
+  };
+}
+
+function currentMonthlyPayment(loan) {
+  const nextPayment =
+    nextLoanPayment(loan);
+
+  return nextPayment
+    ? Number(nextPayment.total || 0)
+    : 0;
+}
+
+/* ==================================================
+   KPI 렌더링
+================================================== */
+
 function renderKPI() {
-  const items = data.items || [];
-  const total    = items.reduce((s,i) => s + effectiveAmt(i), 0);
-  const paid     = items.reduce((s,i) => s + paidAmt(i), 0);
-  const dueTotal = items.reduce((s,i) => s + dueAmt(i), 0);
-  const dueCount = items.filter(i => {
-    const st = derivedStatus(i);
-    return st === 'due' || (i.installments||[]).some(inst=>inst.status==='due');
-  }).length;
-  const notDoneCount = items.filter(i => derivedStatus(i) !== 'paid').length;
-  const paidPct = total > 0 ? Math.round(paid/total*100) : 0;
+  const allItems = data.items || [];
 
-  // KPI 카드: fmtFull (전체 금액 표시)
-  document.getElementById('kpi-total').textContent    = fmtFull(total);
-  document.getElementById('kpi-paid').textContent     = fmtFull(paid);
-  document.getElementById('kpi-remain').textContent   = fmtFull(total - paid);
-  document.getElementById('kpi-paid-pct').textContent = paidPct + '%';
-  document.getElementById('pb-paid').style.width      = paidPct + '%';
-  document.getElementById('kpi-due-count').textContent = dueCount.toLocaleString('ko-KR') + '건';
-  document.getElementById('kpi-due-amt').textContent  = '예정 합계: ' + fmtFull(dueTotal);
-  document.getElementById('kpi-pending-count').textContent = notDoneCount.toLocaleString('ko-KR') + '건';
+  const expenseItems = allItems.filter(
+    (item) =>
+      item.category !== "분양가"
+  );
 
-  const todos   = data.todos || [];
-  const doneTd  = todos.filter(t=>t.done).length;
-  const todoPct = todos.length > 0 ? Math.round(doneTd/todos.length*100) : 0;
-  document.getElementById('kpi-todo').textContent         = todoPct + '%';
-  document.getElementById('kpi-todo-detail').textContent  = `${doneTd.toLocaleString('ko-KR')} / ${todos.length.toLocaleString('ko-KR')}`;
-  document.getElementById('pb-todo').style.width          = todoPct + '%';
-  document.getElementById('todo-overall-pct').textContent = todoPct + '%';
-  document.getElementById('pb-todo-overall').style.width  = todoPct + '%';
+  const totalExpense = expenseItems.reduce(
+    (sum, item) =>
+      sum + effectiveAmt(item),
+    0
+  );
+
+  const paidExpense = expenseItems.reduce(
+    (sum, item) =>
+      sum + paidAmt(item),
+    0
+  );
+
+  const remainingExpense = Math.max(
+    0,
+    totalExpense - paidExpense
+  );
+
+  const dueExpense = expenseItems.reduce(
+    (sum, item) =>
+      sum + dueAmt(item),
+    0
+  );
+
+  const dueCount = expenseItems.filter(
+    (item) => {
+      const status = derivedStatus(item);
+
+      return (
+        status === "due" ||
+        (item.installments || []).some(
+          (installment) =>
+            installment.status === "due"
+        )
+      );
+    }
+  ).length;
+
+  const incompleteCount =
+    expenseItems.filter(
+      (item) =>
+        derivedStatus(item) !== "paid"
+    ).length;
+
+  const paidPercent =
+    totalExpense > 0
+      ? Math.round(
+          paidExpense /
+          totalExpense *
+          100
+        )
+      : 0;
+
+  document.getElementById(
+    "kpi-total"
+  ).textContent = fmtFull(totalExpense);
+
+  document.getElementById(
+    "kpi-paid"
+  ).textContent = fmtFull(paidExpense);
+
+  document.getElementById(
+    "kpi-remain"
+  ).textContent = fmtFull(remainingExpense);
+
+  document.getElementById(
+    "kpi-paid-pct"
+  ).textContent = paidPercent + "%";
+
+  document.getElementById(
+    "pb-paid"
+  ).style.width = paidPercent + "%";
+
+  document.getElementById(
+    "kpi-due-count"
+  ).textContent =
+    dueCount.toLocaleString("ko-KR") +
+    "건";
+
+  document.getElementById(
+    "kpi-due-amt"
+  ).textContent =
+    "예정 합계: " +
+    fmtFull(dueExpense);
+
+  document.getElementById(
+    "kpi-pending-count"
+  ).textContent =
+    incompleteCount.toLocaleString("ko-KR") +
+    "건";
+
+  const todos = data.todos || [];
+
+  const completedTodos =
+    todos.filter(
+      (todo) => todo.done
+    ).length;
+
+  const todoPercent =
+    todos.length > 0
+      ? Math.round(
+          completedTodos /
+          todos.length *
+          100
+        )
+      : 0;
+
+  document.getElementById(
+    "kpi-todo"
+  ).textContent = todoPercent + "%";
+
+  document.getElementById(
+    "kpi-todo-detail"
+  ).textContent =
+    `${completedTodos.toLocaleString("ko-KR")} / ` +
+    `${todos.length.toLocaleString("ko-KR")}`;
+
+  document.getElementById(
+    "pb-todo"
+  ).style.width = todoPercent + "%";
+
+  document.getElementById(
+    "todo-overall-pct"
+  ).textContent = todoPercent + "%";
+
+  document.getElementById(
+    "pb-todo-overall"
+  ).style.width = todoPercent + "%";
 }
 
-// ════════════════════════════════════════
-//  COST TABLE
-// ════════════════════════════════════════
+/* ==================================================
+   비용 상세
+================================================== */
+
 function renderCostTable() {
-  const tbody = document.getElementById('cost-tbody');
-  tbody.innerHTML = '';
-  const items = data.items || [];
+  const tbody =
+    document.getElementById("cost-tbody");
+
+  tbody.innerHTML = "";
 
   const groups = {};
-  items.forEach((item, i) => {
-    const cat = item.category || '기타';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push({...item, _i:i});
-  });
 
-  const orderedCats = [...CAT_ORDER.filter(c=>groups[c]), ...Object.keys(groups).filter(c=>!CAT_ORDER.includes(c))];
+  (data.items || []).forEach(
+    (item, index) => {
+      const category =
+        item.category || "기타";
+
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+
+      groups[category].push({
+        ...item,
+        _index: index
+      });
+    }
+  );
+
+  const orderedCategories = [
+    ...CAT_ORDER.filter(
+      (category) => groups[category]
+    ),
+    ...Object.keys(groups).filter(
+      (category) =>
+        !CAT_ORDER.includes(category)
+    )
+  ];
+
   let grandTotal = 0;
 
-  orderedCats.forEach(cat => {
-    const group = groups[cat];
-    const catTotal = group.reduce((s,i) => s + effectiveAmt(i), 0);
-    grandTotal += catTotal;
-    const color = CAT_COLOR[cat] || '#8b92a5';
+  orderedCategories.forEach(
+    (category) => {
+      const categoryItems =
+        groups[category];
 
-    const htr = document.createElement('tr');
-    htr.className = 'cost-cat-header';
-    htr.innerHTML = `<td colspan="2"><span style="color:${color};font-weight:700">▸ ${cat}</span></td><td style="text-align:right;color:${color};font-weight:700">${fmt(catTotal)}</td>`;
-    tbody.appendChild(htr);
+      const categoryTotal =
+        categoryItems.reduce(
+          (sum, item) =>
+            sum + effectiveAmt(item),
+          0
+        );
 
-    group.forEach(item => {
-      const st    = derivedStatus(item);
-      const badge = statusBadge(st);
-      const hasInst = item.installments && item.installments.length > 0;
-      const effAmt  = effectiveAmt(item);
+      grandTotal += categoryTotal;
 
-      if (hasInst) {
-        const ptr = document.createElement('tr');
-        ptr.className = 'cost-parent-row clickable';
-        ptr.innerHTML = `<td style="padding-left:20px;font-weight:600;color:#1a1a2e">${item.name} <span style="font-size:0.72rem;color:#8b92a5">(${item.installments.length}회 분할)</span></td><td style="text-align:right;font-size:0.82rem;color:#8b92a5">${fmt(item.amount)} 기준</td><td style="text-align:center">${badge}</td>`;
-        ptr.onclick = () => openItemModal(item._i);
-        tbody.appendChild(ptr);
+      const color =
+        CAT_COLOR[category] ||
+        "#8b92a5";
 
-        item.installments.forEach(inst => {
-          const instBadge = inst.status==='paid' ? '<span class="badge-paid">완료</span>'
-                          : inst.status==='due'  ? '<span class="badge-due">예정</span>'
-                          :                        '<span class="badge-pending">미납</span>';
-          const itr = document.createElement('tr');
-          itr.className = 'cost-inst-row clickable';
-          itr.innerHTML = `<td style="color:#1a1a2e">${item.name} <span style="color:#8b92a5">→</span> ${inst.title}${inst.date?` <span style="color:#8b92a5;font-size:0.72rem">(${fmtDate(inst.date)})</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(inst.amount)}<span style="color:#b0b7c3;font-size:0.72rem;margin-left:4px">${inst.pct?inst.pct+'%':''}</span></td><td style="text-align:center">${instBadge}</td>`;
-          itr.onclick = () => openItemModal(item._i);
-          tbody.appendChild(itr);
-        });
-      } else {
-        const tr = document.createElement('tr');
-        tr.className = 'clickable';
-        const subText = [item.vendor?`🏪 ${item.vendor}`:'', item.memo].filter(Boolean).join(' · ');
-        tr.innerHTML = `<td style="padding-left:20px;font-weight:500">${item.name}${subText?` <span style="font-size:0.75rem;color:#b0b7c3">${subText}</span>`:''}</td><td style="text-align:right;font-weight:600">${fmt(effAmt)}</td><td style="text-align:center">${badge}</td>`;
-        tr.onclick = () => openItemModal(item._i);
-        tbody.appendChild(tr);
-      }
-    });
-  });
+      const categoryRow =
+        document.createElement("tr");
 
-  const totalTr = document.createElement('tr');
-  totalTr.className = 'cost-total-row';
-  totalTr.innerHTML = `<td style="font-weight:700">합계</td><td style="text-align:right;font-size:1rem;font-weight:800">${fmt(grandTotal)}</td><td></td>`;
-  tbody.appendChild(totalTr);
-  document.getElementById('total-bar-val').textContent = fmt(grandTotal);
-}
+      categoryRow.className =
+        "cost-cat-header";
 
-// ════════════════════════════════════════
-//  TIMELINE
-// ════════════════════════════════════════
-function renderTimeline() {
-  const tl    = document.getElementById('payment-timeline');
-  const empty = document.getElementById('timeline-empty');
-  tl.innerHTML = '';
+      categoryRow.innerHTML = `
+        <td colspan="2">
+          <span style="color:${color}">
+            ▸ ${esc(category)}
+          </span>
+        </td>
 
-  const entries = [];
-  (data.items || []).forEach((item, idx) => {
-    if (item.installments && item.installments.length > 0) {
-      item.installments.forEach(inst => {
-        if (inst.date) entries.push({ date:inst.date, name:`${item.name} → ${inst.title}`, amount:Number(inst.amount||0), status:inst.status, parentIdx:idx });
+        <td style="text-align:right;color:${color}">
+          ${fmtFull(categoryTotal)}
+        </td>
+      `;
+
+      tbody.appendChild(categoryRow);
+
+      categoryItems.forEach((item) => {
+        const status =
+          derivedStatus(item);
+
+        const hasInstallments =
+          Array.isArray(item.installments) &&
+          item.installments.length > 0;
+
+        if (hasInstallments) {
+          const parentRow =
+            document.createElement("tr");
+
+          parentRow.className =
+            "cost-parent-row clickable";
+
+          parentRow.innerHTML = `
+            <td style="padding-left:20px;font-weight:700">
+              ${esc(item.name)}
+              <span style="font-size:0.7rem;color:#8b92a5">
+                (${item.installments.length}회 분할)
+              </span>
+            </td>
+
+            <td style="text-align:right;color:#8b92a5">
+              기준 ${fmtFull(item.amount)}
+            </td>
+
+            <td style="text-align:center">
+              ${statusBadge(status)}
+            </td>
+          `;
+
+          parentRow.onclick = () =>
+            openItemModal(item._index);
+
+          tbody.appendChild(parentRow);
+
+          item.installments.forEach(
+            (installment) => {
+              const installmentBadge =
+                installment.status === "paid"
+                  ? '<span class="badge-paid">완료</span>'
+                  : installment.status === "due"
+                    ? '<span class="badge-due">예정</span>'
+                    : '<span class="badge-pending">미납</span>';
+
+              const row =
+                document.createElement("tr");
+
+              row.className =
+                "cost-inst-row clickable";
+
+              row.innerHTML = `
+                <td>
+                  ${esc(item.name)}
+                  <span style="color:#8b92a5">→</span>
+                  ${esc(installment.title)}
+
+                  ${
+                    installment.date
+                      ? `
+                        <span style="color:#8b92a5;font-size:0.7rem">
+                          (${fmtDate(installment.date)})
+                        </span>
+                      `
+                      : ""
+                  }
+                </td>
+
+                <td style="text-align:right;font-weight:700">
+                  ${fmtFull(installment.amount)}
+
+                  ${
+                    installment.pct
+                      ? `
+                        <span style="color:#b0b7c3;font-size:0.68rem">
+                          ${installment.pct}%
+                        </span>
+                      `
+                      : ""
+                  }
+                </td>
+
+                <td style="text-align:center">
+                  ${installmentBadge}
+                </td>
+              `;
+
+              row.onclick = () =>
+                openItemModal(
+                  item._index
+                );
+
+              tbody.appendChild(row);
+            }
+          );
+        } else {
+          const row =
+            document.createElement("tr");
+
+          row.className = "clickable";
+
+          const subText = [
+            item.vendor
+              ? `🏪 ${item.vendor}`
+              : "",
+            item.memo || ""
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          row.innerHTML = `
+            <td style="padding-left:20px;font-weight:600">
+              ${esc(item.name)}
+
+              ${
+                subText
+                  ? `
+                    <span style="font-size:0.72rem;color:#b0b7c3">
+                      ${esc(subText)}
+                    </span>
+                  `
+                  : ""
+              }
+            </td>
+
+            <td style="text-align:right;font-weight:700">
+              ${fmtFull(effectiveAmt(item))}
+            </td>
+
+            <td style="text-align:center">
+              ${statusBadge(status)}
+            </td>
+          `;
+
+          row.onclick = () =>
+            openItemModal(item._index);
+
+          tbody.appendChild(row);
+        }
       });
-    } else if (item.dueDate) {
-      entries.push({ date:item.dueDate, name:item.name, amount:effectiveAmt(item), status:item.status, parentIdx:idx });
     }
-  });
+  );
 
-  if (!entries.length) { tl.style.display='none'; empty.style.display='block'; return; }
-  tl.style.display='block'; empty.style.display='none';
+  const totalRow =
+    document.createElement("tr");
 
-  const byDate = {};
-  entries.forEach(e => { if (!byDate[e.date]) byDate[e.date]=[]; byDate[e.date].push(e); });
+  totalRow.className =
+    "cost-total-row";
 
-  const today = new Date(); today.setHours(0,0,0,0);
+  totalRow.innerHTML = `
+    <td>합계</td>
 
-  Object.keys(byDate).sort().forEach(date => {
-    const group   = byDate[date];
-    const dateObj = new Date(date); dateObj.setHours(0,0,0,0);
-    const daysAway = Math.round((dateObj - today) / 86400000);
-    const allDone  = group.every(e => e.status==='paid');
-    const hasDue   = group.some(e => e.status==='due');
-    const dotCls   = allDone ? 'done' : hasDue||daysAway<=30 ? 'upcoming' : 'future';
-    const groupAmt = group.reduce((s,e) => s+e.amount, 0);
+    <td style="text-align:right;font-size:0.98rem">
+      ${fmtFull(grandTotal)}
+    </td>
 
-    const g = document.createElement('div');
-    g.className = 'tl-group';
-    g.innerHTML = `
-      <div class="tl-date-block">
-        <div class="tl-dot ${dotCls}"></div>
-        <div class="tl-date-label">${fmtDate(date)}</div>
-        <div class="tl-date-sub">${group.length}건 · 합계 ${fmt(groupAmt)}</div>
-      </div>
-      <div class="tl-items"></div>`;
+    <td></td>
+  `;
 
-    const itemsDiv = g.querySelector('.tl-items');
-    group.forEach(entry => {
-      const badge = entry.status==='paid' ? '<span class="badge-paid">완료</span>'
-                  : entry.status==='due'  ? '<span class="badge-due">예정</span>'
-                  :                         '<span class="badge-pending">미납</span>';
-      const d = document.createElement('div');
-      d.className = 'tl-item';
-      d.innerHTML = `<div class="tl-item-row"><div><div class="tl-item-name">${entry.name}</div><div class="tl-item-amt">${fmt(entry.amount)}</div></div>${badge}</div>`;
-      d.onclick = () => openItemModal(entry.parentIdx);
-      itemsDiv.appendChild(d);
-    });
-    tl.appendChild(g);
-  });
+  tbody.appendChild(totalRow);
+
+  document.getElementById(
+    "total-bar-val"
+  ).textContent = fmtFull(grandTotal);
 }
 
-// ════════════════════════════════════════
-//  ITEM CARDS
-// ════════════════════════════════════════
-let activeItemTab = '전체';
+/* ==================================================
+   납부 달력 데이터
+================================================== */
+
+function collectPaymentEntries() {
+  const entries = [];
+  const today = localDate(new Date());
+
+  (data.items || []).forEach(
+    (item, itemIndex) => {
+      if (
+        Array.isArray(item.installments) &&
+        item.installments.length
+      ) {
+        item.installments.forEach(
+          (installment) => {
+            if (!installment.date) {
+              return;
+            }
+
+            entries.push({
+              date: installment.date,
+              name:
+                `${item.name} → ` +
+                installment.title,
+              amount:
+                Number(
+                  installment.amount || 0
+                ),
+              paid:
+                installment.status === "paid",
+              type: "item",
+              parentIndex: itemIndex
+            });
+          }
+        );
+      } else if (item.dueDate) {
+        entries.push({
+          date: item.dueDate,
+          name: item.name,
+          amount: effectiveAmt(item),
+          paid: item.status === "paid",
+          type: "item",
+          parentIndex: itemIndex
+        });
+      }
+    }
+  );
+
+  (data.loans || []).forEach(
+    (loan, loanIndex) => {
+      const result = calcLoan(loan);
+
+      if (
+        !result ||
+        !loan.startDate
+      ) {
+        return;
+      }
+
+      const totalCount =
+        result.graceMonths +
+        result.repayMonths;
+
+      for (
+        let paymentNumber = 1;
+        paymentNumber <= totalCount;
+        paymentNumber++
+      ) {
+        const dueDate =
+          loanPaymentDueDate(
+            loan,
+            paymentNumber
+          );
+
+        const payment =
+          loanPaymentForNumber(
+            loan,
+            paymentNumber
+          );
+
+        if (
+          !dueDate ||
+          payment.total <= 0
+        ) {
+          continue;
+        }
+
+        entries.push({
+          date: ymd(dueDate),
+          name:
+            `${loan.name} ${paymentNumber}회차` +
+            (
+              payment.phase === "grace"
+                ? " · 이자"
+                : ""
+            ),
+          amount: payment.total,
+          paid: dueDate <= today,
+          type: "loan",
+          loanIndex,
+          principal: payment.principal,
+          interest: payment.interest
+        });
+      }
+    }
+  );
+
+  return entries;
+}
+
+function changeCalendarMonth(offset) {
+  calendarCursor.setMonth(
+    calendarCursor.getMonth() +
+    offset
+  );
+
+  calendarCursor.setDate(1);
+
+  renderPaymentCalendar();
+}
+
+function goCalendarToday() {
+  calendarCursor = new Date();
+  calendarCursor.setDate(1);
+
+  renderPaymentCalendar();
+}
+
+function renderPaymentCalendar() {
+  const calendar =
+    document.getElementById(
+      "payment-calendar"
+    );
+
+  calendar.innerHTML = "";
+
+  document.getElementById(
+    "calendar-month-title"
+  ).textContent =
+    `${calendarCursor.getFullYear()}년 ` +
+    `${calendarCursor.getMonth() + 1}월`;
+
+  const weekdays = [
+    "일",
+    "월",
+    "화",
+    "수",
+    "목",
+    "금",
+    "토"
+  ];
+
+  weekdays.forEach(
+    (weekday, index) => {
+      const element =
+        document.createElement("div");
+
+      element.className =
+        "calendar-weekday" +
+        (index === 0
+          ? " sun"
+          : index === 6
+            ? " sat"
+            : "");
+
+      element.textContent = weekday;
+
+      calendar.appendChild(element);
+    }
+  );
+
+  const entries =
+    collectPaymentEntries();
+
+  const entriesByDate = {};
+
+  entries.forEach((entry) => {
+    if (!entriesByDate[entry.date]) {
+      entriesByDate[entry.date] = [];
+    }
+
+    entriesByDate[entry.date].push(
+      entry
+    );
+  });
+
+  const firstDayOfMonth =
+    new Date(
+      calendarCursor.getFullYear(),
+      calendarCursor.getMonth(),
+      1
+    );
+
+  const gridStart =
+    new Date(firstDayOfMonth);
+
+  gridStart.setDate(
+    1 - firstDayOfMonth.getDay()
+  );
+
+  const todayKey = ymd(new Date());
+
+  for (
+    let cellIndex = 0;
+    cellIndex < 42;
+    cellIndex++
+  ) {
+    const date = new Date(gridStart);
+
+    date.setDate(
+      gridStart.getDate() +
+      cellIndex
+    );
+
+    const dateKey = ymd(date);
+
+    const dateEntries =
+      entriesByDate[dateKey] || [];
+
+    const paidTotal =
+      dateEntries
+        .filter((entry) => entry.paid)
+        .reduce(
+          (sum, entry) =>
+            sum + entry.amount,
+          0
+        );
+
+    const dueTotal =
+      dateEntries
+        .filter((entry) => !entry.paid)
+        .reduce(
+          (sum, entry) =>
+            sum + entry.amount,
+          0
+        );
+
+    const dayElement =
+      document.createElement("div");
+
+    const otherMonth =
+      date.getMonth() !==
+      calendarCursor.getMonth();
+
+    const isToday =
+      dateKey === todayKey;
+
+    dayElement.className =
+      "calendar-day" +
+      (otherMonth
+        ? " other-month"
+        : "") +
+      (isToday
+        ? " today"
+        : "");
+
+    const detailHtml =
+      dateEntries
+        .slice(0, 2)
+        .map(
+          (entry) => `
+            <div class="calendar-detail-item">
+              ${entry.paid ? "✓" : "•"}
+              ${esc(entry.name)}
+            </div>
+          `
+        )
+        .join("");
+
+    dayElement.innerHTML = `
+      <div class="calendar-date">
+        <span>${date.getDate()}</span>
+
+        ${
+          isToday
+            ? '<span class="today-label">오늘</span>'
+            : ""
+        }
+      </div>
+
+      ${
+        paidTotal > 0
+          ? `
+            <span
+              class="calendar-amount paid"
+              title="${fmtFull(paidTotal)}"
+            >
+              완료 ${fmtCalendarAmount(paidTotal)}
+            </span>
+          `
+          : ""
+      }
+
+      ${
+        dueTotal > 0
+          ? `
+            <span
+              class="calendar-amount due"
+              title="${fmtFull(dueTotal)}"
+            >
+              예정 ${fmtCalendarAmount(dueTotal)}
+            </span>
+          `
+          : ""
+      }
+
+      ${
+        dateEntries.length
+          ? `
+            <div class="calendar-count">
+              ${dateEntries.length}건
+            </div>
+
+            <div class="calendar-detail">
+              ${detailHtml}
+
+              ${
+                dateEntries.length > 2
+                  ? `
+                    <div class="calendar-detail-item">
+                      외 ${dateEntries.length - 2}건
+                    </div>
+                  `
+                  : ""
+              }
+            </div>
+          `
+          : ""
+      }
+    `;
+
+    if (dateEntries.length) {
+      dayElement.title =
+        dateEntries
+          .map(
+            (entry) =>
+              `${entry.name}\n` +
+              `${fmtFull(entry.amount)} · ` +
+              `${entry.paid ? "완료" : "예정"}`
+          )
+          .join("\n\n");
+    }
+
+    calendar.appendChild(dayElement);
+  }
+}
+
+/* ==================================================
+   구매 항목 렌더링
+================================================== */
+
 function renderItems() {
   const items = data.items || [];
-  const cats  = ['전체', ...new Set(items.map(i=>i.category).filter(Boolean))];
 
-  const tabsEl = document.getElementById('item-tabs');
-  tabsEl.innerHTML = '';
-  cats.forEach(cat => {
-    const cnt = cat==='전체' ? items.length : items.filter(i=>i.category===cat).length;
-    const s = document.createElement('span');
-    s.className = 'tab' + (cat===activeItemTab ? ' active' : '');
-    s.textContent = `${cat} (${cnt})`;
-    s.onclick = () => { activeItemTab=cat; renderItems(); };
-    tabsEl.appendChild(s);
-  });
+  const categories = [
+    "전체",
+    ...new Set(
+      items
+        .map((item) => item.category)
+        .filter(Boolean)
+    )
+  ];
 
-  const gridEl = document.getElementById('item-grid');
-  gridEl.innerHTML = '';
-  const filtered = activeItemTab==='전체' ? items : items.filter(i=>i.category===activeItemTab);
+  const tabs =
+    document.getElementById("item-tabs");
 
-  filtered.forEach(item => {
-    const idx    = data.items.indexOf(item);
-    const color  = CAT_COLOR[item.category] || '#8b92a5';
-    const st     = derivedStatus(item);
-    const stCls  = st==='paid'?'st-paid':st==='partial'?'st-partial':st==='due'?'st-due':'';
-    const hasInst = item.installments && item.installments.length > 0;
-    const effAmt  = effectiveAmt(item);
-    const pAmt    = paidAmt(item);
+  tabs.innerHTML = "";
 
-    const badgeClick = hasInst
-      ? `onclick="openItemModal(${idx})"`
-      : `onclick="cycleStatus(${idx},event)"`;
-    const badgeHTML = `<span class="item-badge ${st==='paid'?'badge-paid':st==='partial'?'badge-partial':st==='due'?'badge-due':'badge-pending'}" ${badgeClick}>${st==='paid'?'✅ 완료':st==='partial'?'⬤ 부분완료':st==='due'?'🕐 예정':'○ 미결제'}</span>`;
+  categories.forEach(
+    (category) => {
+      const count =
+        category === "전체"
+          ? items.length
+          : items.filter(
+              (item) =>
+                item.category === category
+            ).length;
 
-    let instHTML = '';
-    if (hasInst) {
-      const total = item.installments.length;
-      const paid  = item.installments.filter(i=>i.status==='paid').length;
-      const pct   = total > 0 ? Math.round(paid/total*100) : 0;
-      const next  = item.installments.find(i=>i.status!=='paid');
-      const dots  = item.installments.map(i => `<span class="inst-dot ${i.status}"></span>`).join('');
-      instHTML = `
+      const tab =
+        document.createElement("span");
+
+      tab.className =
+        "tab" +
+        (
+          category === activeItemTab
+            ? " active"
+            : ""
+        );
+
+      tab.textContent =
+        `${category} (${count})`;
+
+      tab.onclick = () => {
+        activeItemTab = category;
+        renderItems();
+      };
+
+      tabs.appendChild(tab);
+    }
+  );
+
+  const grid =
+    document.getElementById("item-grid");
+
+  grid.innerHTML = "";
+
+  const filteredItems =
+    activeItemTab === "전체"
+      ? items
+      : items.filter(
+          (item) =>
+            item.category ===
+            activeItemTab
+        );
+
+  filteredItems.forEach((item) => {
+    const index =
+      data.items.indexOf(item);
+
+    const status =
+      derivedStatus(item);
+
+    const hasInstallments =
+      Array.isArray(item.installments) &&
+      item.installments.length > 0;
+
+    const color =
+      CAT_COLOR[item.category] ||
+      "#8b92a5";
+
+    const statusClass =
+      status === "paid"
+        ? "st-paid"
+        : status === "partial"
+          ? "st-partial"
+          : status === "due"
+            ? "st-due"
+            : "";
+
+    const badgeClass =
+      status === "paid"
+        ? "badge-paid"
+        : status === "partial"
+          ? "badge-partial"
+          : status === "due"
+            ? "badge-due"
+            : "badge-pending";
+
+    const badgeText =
+      status === "paid"
+        ? "✅ 완료"
+        : status === "partial"
+          ? "⬤ 부분완료"
+          : status === "due"
+            ? "🕐 예정"
+            : "○ 미결제";
+
+    let installmentHtml = "";
+
+    if (hasInstallments) {
+      const totalCount =
+        item.installments.length;
+
+      const paidCount =
+        item.installments.filter(
+          (installment) =>
+            installment.status === "paid"
+        ).length;
+
+      const paidAmount =
+        paidAmt(item);
+
+      const progressPercent =
+        totalCount > 0
+          ? Math.round(
+              paidCount /
+              totalCount *
+              100
+            )
+          : 0;
+
+      const nextInstallment =
+        item.installments.find(
+          (installment) =>
+            installment.status !== "paid"
+        );
+
+      const dots =
+        item.installments
+          .map(
+            (installment) =>
+              `<span class="inst-dot ${installment.status}"></span>`
+          )
+          .join("");
+
+      installmentHtml = `
         <div class="item-prog-wrap">
-          <div class="item-prog-bar-bg"><div class="item-prog-bar-fill" style="width:${pct}%"></div></div>
-          <div class="item-prog-label">${paid}/${total} 완료 · ${fmt(pAmt)} 납부</div>
+          <div class="progress-bar-bg" style="height:5px">
+            <div
+              class="progress-bar-fill"
+              style="
+                width:${progressPercent}%;
+                background:linear-gradient(90deg,#22c55e,#86efac);
+              "
+            ></div>
+          </div>
+
+          <div class="item-prog-label">
+            ${paidCount}/${totalCount} 완료 ·
+            ${fmtCompact(paidAmount)} 납부
+          </div>
         </div>
-        <div class="item-inst-dots">${dots}</div>
-        ${next ? `<div class="item-next">다음: ${next.title} ${fmt(next.amount)}${next.date?` · ${fmtDate(next.date)}`:''}</div>` : ''}`;
+
+        <div class="item-inst-dots">
+          ${dots}
+        </div>
+
+        ${
+          nextInstallment
+            ? `
+              <div class="item-next">
+                다음:
+                ${esc(nextInstallment.title)}
+                ${fmtCompact(nextInstallment.amount)}
+
+                ${
+                  nextInstallment.date
+                    ? ` · ${fmtDate(nextInstallment.date)}`
+                    : ""
+                }
+              </div>
+            `
+            : ""
+        }
+      `;
     }
 
-    const card = document.createElement('div');
-    card.className = `item-card ${stCls}`;
+    const card =
+      document.createElement("div");
+
+    card.className =
+      `item-card ${statusClass}`;
+
     card.innerHTML = `
-      ${badgeHTML}
-      <div class="item-cat" style="color:${color}">${item.category}</div>
-      <div class="item-name">${item.name}</div>
-      <div class="item-amt">${fmt(effAmt)}${hasInst && item.amount ? ` <span style="font-size:0.72rem;color:#b0b7c3">(기준 ${fmt(item.amount)})</span>` : ''}</div>
-      ${!hasInst && item.dueDate ? `<div class="item-date">📅 ${fmtDate(item.dueDate)}</div>` : ''}
-      ${item.vendor ? `<div class="item-memo">🏪 ${esc(item.vendor)}</div>` : ''}
-      ${item.memo && !hasInst ? `<div class="item-memo">${esc(item.memo)}</div>` : ''}
-      ${instHTML}`;
-    card.onclick = e => { if (!e.target.classList.contains('item-badge')) openItemModal(idx); };
-    gridEl.appendChild(card);
+      <span
+        class="item-badge ${badgeClass}"
+        onclick="${
+          hasInstallments
+            ? `openItemModal(${index})`
+            : `cycleStatus(${index},event)`
+        }"
+      >
+        ${badgeText}
+      </span>
+
+      <div
+        class="item-cat"
+        style="color:${color}"
+      >
+        ${esc(item.category)}
+      </div>
+
+      <div class="item-name">
+        ${esc(item.name)}
+      </div>
+
+      <div class="item-amt">
+        ${fmtFull(effectiveAmt(item))}
+      </div>
+
+      ${
+        !hasInstallments &&
+        item.dueDate
+          ? `
+            <div class="item-date">
+              📅 ${fmtDate(item.dueDate)}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        item.vendor
+          ? `
+            <div class="item-memo">
+              🏪 ${esc(item.vendor)}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        item.memo
+          ? `
+            <div class="item-memo">
+              ${esc(item.memo)}
+            </div>
+          `
+          : ""
+      }
+
+      ${installmentHtml}
+    `;
+
+    card.onclick = (event) => {
+      if (
+        !event.target.classList.contains(
+          "item-badge"
+        )
+      ) {
+        openItemModal(index);
+      }
+    };
+
+    grid.appendChild(card);
   });
 
-  document.getElementById('item-total-bar').textContent = fmt(items.reduce((s,i)=>s+effectiveAmt(i),0));
+  const total = items.reduce(
+    (sum, item) =>
+      sum + effectiveAmt(item),
+    0
+  );
+
+  document.getElementById(
+    "item-total-bar"
+  ).textContent = fmtFull(total);
 }
 
-function cycleStatus(idx, e) {
-  e.stopPropagation();
-  const item = data.items[idx];
-  if (item.installments && item.installments.length > 0) { openItemModal(idx); return; }
-  const order = ['pending','due','paid'];
-  const cur = item.status || 'pending';
-  item.status = order[(order.indexOf(cur)+1) % 3];
-  saveData(); renderAll();
+function cycleStatus(index, event) {
+  event.stopPropagation();
+
+  const item = data.items[index];
+
+  if (
+    Array.isArray(item.installments) &&
+    item.installments.length
+  ) {
+    openItemModal(index);
+    return;
+  }
+
+  const statuses = [
+    "pending",
+    "due",
+    "paid"
+  ];
+
+  const current =
+    item.status || "pending";
+
+  const currentIndex =
+    statuses.indexOf(current);
+
+  item.status =
+    statuses[
+      (currentIndex + 1) %
+      statuses.length
+    ];
+
+  saveData();
+  renderAll();
 }
 
-// ════════════════════════════════════════
-//  TODOS
-// ════════════════════════════════════════
-let activeTodoTab = '전체';
+/* ==================================================
+   할 일 렌더링
+================================================== */
+
 function renderTodos() {
   const todos = data.todos || [];
-  const cats  = ['전체', ...new Set(todos.map(t=>t.category).filter(Boolean))];
-  const tabsEl = document.getElementById('todo-tabs');
-  tabsEl.innerHTML = '';
-  cats.forEach(cat => {
-    const s = document.createElement('span');
-    s.className = 'tab' + (cat===activeTodoTab ? ' active' : '');
-    s.textContent = cat;
-    s.onclick = () => { activeTodoTab=cat; renderTodos(); };
-    tabsEl.appendChild(s);
-  });
-  const listEl = document.getElementById('todo-list');
-  listEl.innerHTML = '';
-  const filtered = activeTodoTab==='전체' ? todos : todos.filter(t=>t.category===activeTodoTab);
-  filtered.forEach(t => {
-    const i  = todos.indexOf(t);
-    const pc = t.priority==='high'?'priority-high':t.priority==='mid'?'priority-mid':'priority-low';
-    const pl = t.priority==='high'?'긴급':t.priority==='mid'?'중간':'여유';
-    const div = document.createElement('div');
-    div.className = 'todo-item';
-    div.innerHTML = `
-      <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo(${i},event)">${t.done?'✓':''}</div>
-      <div class="todo-text" onclick="openTodoModal(${i})">
-        <div class="todo-label ${t.done?'done':''}">${t.name}</div>
-        ${t.note?`<div class="todo-note">${t.note}</div>`:''}
-      </div>
-      <span class="todo-priority ${pc}">${pl}</span>`;
-    listEl.appendChild(div);
-  });
-}
-function toggleTodo(i, e) {
-  e.stopPropagation();
-  data.todos[i].done = !data.todos[i].done;
-  saveData(); renderAll();
-}
 
-// ════════════════════════════════════════
-//  RENDER ALL
-// ════════════════════════════════════════
-function renderAll() {
-  updateDday(); renderKPI(); renderCostTable(); renderTimeline(); renderTodos(); renderItems(); renderLoans();
-}
+  const categories = [
+    "전체",
+    ...new Set(
+      todos
+        .map((todo) => todo.category)
+        .filter(Boolean)
+    )
+  ];
 
-// ════════════════════════════════════════
-//  MODALS
-// ════════════════════════════════════════
-function openModal(id)  { document.getElementById(id).classList.add('show'); }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-document.querySelectorAll('.modal-overlay').forEach(el => {
-  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
-});
+  const tabs =
+    document.getElementById("todo-tabs");
 
-// ── Installment row helpers ──
-function onTotalAmtChange() {
-  recalcInstAmts();
-  updateInstTotal();
-}
+  tabs.innerHTML = "";
 
-function recalcInstAmts() {
-  // item-amount는 원 단위 → 만원으로 변환
-  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
-  if (totalMan <= 0) return;
-  document.querySelectorAll('.inst-row').forEach(row => {
-    const pctInput = row.querySelector('[data-f="pct"]');
-    const amtInput = row.querySelector('[data-f="amount"]');
-    const pct = Number(pctInput.value || 0);
-    if (pct > 0) {
-      const computed = Math.round(totalMan * pct / 100 * 10) / 10;
-      amtInput.value = fmtInput(computed);
+  categories.forEach(
+    (category) => {
+      const tab =
+        document.createElement("span");
+
+      tab.className =
+        "tab" +
+        (
+          category === activeTodoTab
+            ? " active"
+            : ""
+        );
+
+      tab.textContent = category;
+
+      tab.onclick = () => {
+        activeTodoTab = category;
+        renderTodos();
+      };
+
+      tabs.appendChild(tab);
     }
+  );
+
+  const list =
+    document.getElementById("todo-list");
+
+  list.innerHTML = "";
+
+  const filteredTodos =
+    activeTodoTab === "전체"
+      ? todos
+      : todos.filter(
+          (todo) =>
+            todo.category ===
+            activeTodoTab
+        );
+
+  filteredTodos.forEach((todo) => {
+    const index =
+      todos.indexOf(todo);
+
+    const priorityClass =
+      todo.priority === "high"
+        ? "priority-high"
+        : todo.priority === "mid"
+          ? "priority-mid"
+          : "priority-low";
+
+    const priorityLabel =
+      todo.priority === "high"
+        ? "긴급"
+        : todo.priority === "mid"
+          ? "중간"
+          : "여유";
+
+    const element =
+      document.createElement("div");
+
+    element.className = "todo-item";
+
+    element.innerHTML = `
+      <div
+        class="todo-checkbox ${todo.done ? "checked" : ""}"
+        onclick="toggleTodo(${index},event)"
+      >
+        ${todo.done ? "✓" : ""}
+      </div>
+
+      <div
+        class="todo-text"
+        onclick="openTodoModal(${index})"
+      >
+        <div
+          class="todo-label ${todo.done ? "done" : ""}"
+        >
+          ${esc(todo.name)}
+        </div>
+
+        ${
+          todo.note
+            ? `
+              <div class="todo-note">
+                ${esc(todo.note)}
+              </div>
+            `
+            : ""
+        }
+      </div>
+
+      <span
+        class="todo-priority ${priorityClass}"
+      >
+        ${priorityLabel}
+      </span>
+    `;
+
+    list.appendChild(element);
   });
-  updateInstTotal();
 }
 
-function onInstPct(el) {
-  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
-  const row = el.closest('.inst-row');
-  const amtInput = row.querySelector('[data-f="amount"]');
-  if (totalMan > 0) {
-    const computed = Math.round(totalMan * Number(el.value||0) / 100 * 10) / 10;
-    amtInput.value = fmtInput(computed);
-  }
-  updateInstTotal();
+function toggleTodo(index, event) {
+  event.stopPropagation();
+
+  data.todos[index].done =
+    !data.todos[index].done;
+
+  saveData();
+  renderAll();
 }
 
-function onInstAmt(el) {
-  const totalMan = parseWon(document.getElementById('item-amount').value) / 10000;
-  const row = el.closest('.inst-row');
-  const pctInput = row.querySelector('[data-f="pct"]');
-  const v = parseAmt(el.value); // 만원 단위
-  if (totalMan > 0) pctInput.value = (v / totalMan * 100).toFixed(1);
-  updateInstTotal();
-}
+/* ==================================================
+   대출 렌더링
+================================================== */
 
-function updateInstTotal() {
-  let sum = 0;
-  document.querySelectorAll('.inst-row [data-f="amount"]').forEach(el => sum += parseAmt(el.value));
-  const label = document.getElementById('inst-total-label');
-  if (label) label.textContent = sum > 0 ? `분할 합계: ${fmt(sum)}` : '';
-}
-
-function addInstRow(inst) {
-  const d = inst || { title:'', pct:'', amount:'', date:'', status:'pending' };
-  const amtDisplay = d.amount ? fmtInput(d.amount) : '';
-  const div = document.createElement('div');
-  div.className = 'inst-row';
-  div.innerHTML = `
-    <div class="inst-row-top">
-      <input class="form-input inst-small" placeholder="제목 (예: 계약금, 중도금 1차)" value="${esc(d.title)}" data-f="title">
-      <button type="button" class="inst-del-btn" onclick="this.closest('.inst-row').remove();updateInstTotal()">×</button>
-    </div>
-    <div class="inst-row-bottom">
-      <div>
-        <span class="inst-row-label">비율 (%)</span>
-        <input class="form-input inst-small" type="number" step="0.1" placeholder="%" value="${d.pct}" data-f="pct" oninput="onInstPct(this)">
-      </div>
-      <div>
-        <span class="inst-row-label">금액 (만원)</span>
-        <input class="form-input inst-small" type="text" inputmode="decimal" placeholder="만원"
-          value="${amtDisplay}" data-f="amount"
-          onfocus="amtFocus(this)" onblur="amtBlur(this)" oninput="onInstAmt(this)">
-      </div>
-      <div>
-        <span class="inst-row-label">납부일</span>
-        <input class="form-input inst-small" type="date" value="${d.date}" data-f="date">
-      </div>
-      <div>
-        <span class="inst-row-label">상태</span>
-        <select class="form-input inst-small" data-f="status">
-          <option value="pending" ${d.status==='pending'?'selected':''}>미납</option>
-          <option value="due"     ${d.status==='due'    ?'selected':''}>예정</option>
-          <option value="paid"    ${d.status==='paid'   ?'selected':''}>완료</option>
-        </select>
-      </div>
-    </div>`;
-  document.getElementById('inst-rows').appendChild(div);
-  updateInstTotal();
-}
-
-function toggleInstSection() {
-  const checked = document.getElementById('use-inst').checked;
-  document.getElementById('inst-area').style.display     = checked ? 'block' : 'none';
-  document.getElementById('simple-fields').style.display = checked ? 'none'  : 'block';
-  document.getElementById('inst-ref-label').textContent  = checked ? '— 분할 납부 기준 총액' : '';
-}
-
-function getInstallments() {
-  return Array.from(document.querySelectorAll('.inst-row')).map(row => ({
-    title:  row.querySelector('[data-f="title"]').value.trim(),
-    pct:    Number(row.querySelector('[data-f="pct"]').value || 0),
-    amount: parseAmt(row.querySelector('[data-f="amount"]').value),
-    date:   row.querySelector('[data-f="date"]').value,
-    status: row.querySelector('[data-f="status"]').value
-  })).filter(i => i.title);
-}
-
-// ── Item Modal ──
-function openItemModal(idx) {
-  const isNew = idx === null;
-  document.getElementById('item-idx').value = isNew ? '' : idx;
-  document.getElementById('item-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
-  document.getElementById('inst-rows').innerHTML = '';
-
-  if (!isNew) {
-    const it = data.items[idx];
-    document.getElementById('item-name').value     = it.name;
-    document.getElementById('item-category').value = it.category || '기타';
-    // 저장값은 만원 → 원 단위로 변환하여 표시
-    document.getElementById('item-amount').value   = fmtWonInput(Math.round((it.amount || 0) * 10000));
-    document.getElementById('item-duedate').value  = it.dueDate || '';
-    document.getElementById('item-status').value   = it.status || 'pending';
-    document.getElementById('item-vendor').value   = it.vendor || '';
-    document.getElementById('item-memo').value     = it.memo || '';
-
-    const hasInst = it.installments && it.installments.length > 0;
-    document.getElementById('use-inst').checked = hasInst;
-    toggleInstSection();
-    if (hasInst) it.installments.forEach(inst => addInstRow(inst));
-  } else {
-    ['item-name','item-amount','item-duedate','item-vendor','item-memo'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('item-category').value = '기타';
-    document.getElementById('item-status').value   = 'pending';
-    document.getElementById('use-inst').checked    = false;
-    toggleInstSection();
-  }
-  updateInstTotal();
-  openModal('item-modal');
-}
-
-function saveItem() {
-  const idx     = document.getElementById('item-idx').value;
-  const useInst = document.getElementById('use-inst').checked;
-  const insts   = useInst ? getInstallments() : null;
-
-  const obj = {
-    name:     document.getElementById('item-name').value,
-    category: document.getElementById('item-category').value,
-    // 입력값은 원 단위 → 만원으로 변환하여 저장
-    amount:   parseWon(document.getElementById('item-amount').value) / 10000,
-    vendor:   document.getElementById('item-vendor').value.trim(),
-    memo:     document.getElementById('item-memo').value
-  };
-
-  if (useInst && insts && insts.length > 0) {
-    obj.installments = insts;
-    obj.dueDate = '';
-    obj.status  = derivedStatus(obj);
-  } else {
-    obj.installments = null;
-    obj.dueDate = document.getElementById('item-duedate').value || '';
-    obj.status  = document.getElementById('item-status').value;
-  }
-
-  if (idx === '') data.items.push(obj);
-  else data.items[Number(idx)] = obj;
-
-  saveData(); closeModal('item-modal'); renderAll();
-}
-
-function deleteItem() {
-  data.items.splice(Number(document.getElementById('item-idx').value), 1);
-  saveData(); closeModal('item-modal'); renderAll();
-}
-
-// ── Todo Modal ──
-function openTodoModal(idx) {
-  const isNew = idx === null;
-  document.getElementById('todo-idx').value = isNew ? '' : idx;
-  document.getElementById('todo-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
-  if (!isNew) {
-    const t = data.todos[idx];
-    document.getElementById('todo-name').value     = t.name;
-    document.getElementById('todo-note').value     = t.note || '';
-    document.getElementById('todo-category').value = t.category || '';
-    document.getElementById('todo-priority').value = t.priority || 'mid';
-  } else {
-    ['todo-name','todo-note','todo-category'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('todo-priority').value = 'mid';
-  }
-  openModal('todo-modal');
-}
-function saveTodo() {
-  const idx = document.getElementById('todo-idx').value;
-  const obj = {
-    name:     document.getElementById('todo-name').value,
-    note:     document.getElementById('todo-note').value,
-    category: document.getElementById('todo-category').value,
-    priority: document.getElementById('todo-priority').value,
-    done:     idx !== '' ? data.todos[Number(idx)].done : false
-  };
-  if (idx === '') data.todos.push(obj);
-  else data.todos[Number(idx)] = obj;
-  saveData(); closeModal('todo-modal'); renderAll();
-}
-function deleteTodo() {
-  data.todos.splice(Number(document.getElementById('todo-idx').value), 1);
-  saveData(); closeModal('todo-modal'); renderAll();
-}
-
-// ════════════════════════════════════════
-//  LOAN CALCULATIONS
-// ════════════════════════════════════════
-
-/**
- * 대출 계산 결과 반환 (원 단위)
- *
- * ■ 거치기간(거치) 개념
- *   - 거치기간 동안: 원금은 갚지 않고 이자(P × r)만 납부
- *   - 거치 종료 후 : 상환기간(period) 동안 원금+이자 분할상환
- *   - 즉 n = loan.period (거치기간과 무관하게 고정)
- *   - 상환기간 중 월 납입액은 거치 유무와 관계없이 동일
- *
- * @returns { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest, n, graceMonths }
- */
-function calcLoan(loan) {
-  const P            = Number(loan.amount) || 0;   // 대출원금 (원)
-  const annualRate   = Number(loan.rate)   || 0;   // 연 금리 (%)
-  const r            = annualRate / 12 / 100;       // 월 금리
-  const n            = Number(loan.period) || 0;   // 상환기간 (개월) — 거치 후 원금 분할기간
-  const graceMonths  = Number(loan.grace)  || 0;   // 거치기간 (개월) — 이자만 납부
-
-  if (P <= 0 || annualRate <= 0 || n <= 0) return null;
-
-  const graceMonthly = Math.round(P * r);           // 거치 중 이자만 납부액
-
-  let repayMonthly1 = 0, repayMonthlyLast = 0, totalInterest = 0;
-
-  if (loan.type === 'bullet') {
-    // 만기일시: 전 기간 이자만, 만기에 원금 일시상환
-    repayMonthly1    = graceMonthly;
-    repayMonthlyLast = graceMonthly;
-    totalInterest    = Math.round(graceMonthly * (graceMonths + n));
-  } else if (loan.type === 'equal-total') {
-    // 원리금균등: 상환기간(n) 동안 매월 동일 금액
-    if (r <= 0) {
-      repayMonthly1 = repayMonthlyLast = Math.round(P / n);
-    } else {
-      const factor = Math.pow(1 + r, n);
-      repayMonthly1 = repayMonthlyLast = Math.round(P * r * factor / (factor - 1));
-    }
-    totalInterest = Math.round(graceMonthly * graceMonths + repayMonthly1 * n - P);
-  } else {
-    // 원금균등: 매월 원금(P/n) 고정, 이자는 잔액 기준으로 감소
-    const pp = P / n;
-    repayMonthly1    = Math.round(pp + P * r);       // 1회차 (이자 최대)
-    repayMonthlyLast = Math.round(pp + pp * r);      // 마지막 (이자 최소)
-    let interestSum  = graceMonthly * graceMonths;
-    for (let k = 0; k < n; k++) interestSum += (P - k * pp) * r;
-    totalInterest = Math.round(interestSum);
-  }
-
-  return { graceMonthly, repayMonthly1, repayMonthlyLast, totalInterest, n, graceMonths };
-}
-
-/**
- * 현재 시점 기준 이번 달 납입액
- *   - startDate 없으면: 거치기간이 있으면 graceMonthly, 없으면 repayMonthly1 반환
- *   - startDate 있으면: 경과 개월 기준으로 거치/상환 단계 판별
- */
-function currentMonthlyPayment(loan) {
-  const res = calcLoan(loan);
-  if (!res) return 0;
-
-  if (!loan.startDate) {
-    // 실행일 미입력 → 거치 중으로 가정 (있는 경우), 없으면 상환 중
-    return res.graceMonths > 0 ? res.graceMonthly : res.repayMonthly1;
-  }
-
-  const today   = new Date(); today.setHours(0,0,0,0);
-  const start   = new Date(loan.startDate); start.setHours(0,0,0,0);
-  const elapsed = (today.getFullYear() - start.getFullYear()) * 12
-                + (today.getMonth()    - start.getMonth());
-
-  if (elapsed < 0) return res.graceMonthly;                     // 아직 시작 전
-  if (elapsed < res.graceMonths) return res.graceMonthly;       // 거치 중 (이자만)
-
-  const repayElapsed = elapsed - res.graceMonths;
-  if (repayElapsed >= res.n) return 0;                          // 상환 완료
-
-  // 원금균등: 회차에 따라 감소
-  if (loan.type === 'equal-princ') {
-    const P  = Number(loan.amount) || 0;
-    const r  = Number(loan.rate) / 12 / 100;
-    const pp = P / res.n;
-    return Math.round(pp + (P - repayElapsed * pp) * r);
-  }
-  return res.repayMonthly1;
-}
-
-/** 원 단위 → 한국어 금액 문자열 (대출 표시용) */
-function fmtWon(won) {
-  won = Math.round(Number(won) || 0);
-  if (won === 0) return '0원';
-  if (won >= 100000000) {
-    const eok = Math.floor(won / 100000000);
-    const man = Math.round((won % 100000000) / 10000);
-    if (man > 0) return `${eok.toLocaleString('ko-KR')}억 ${man.toLocaleString('ko-KR')}만원`;
-    return `${eok.toLocaleString('ko-KR')}억원`;
-  }
-  if (won >= 10000) {
-    const man = Math.floor(won / 10000);
-    const rem = won % 10000;
-    if (rem > 0) return `${man.toLocaleString('ko-KR')}만 ${rem.toLocaleString('ko-KR')}원`;
-    return `${man.toLocaleString('ko-KR')}만원`;
-  }
-  return won.toLocaleString('ko-KR') + '원';
-}
-
-const LOAN_TYPE_LABEL = { 'equal-total':'원리금균등', 'equal-princ':'원금균등', 'bullet':'만기일시' };
-const LOAN_TYPE_CLS   = { 'equal-total':'loan-type-equal-total', 'equal-princ':'loan-type-equal-princ', 'bullet':'loan-type-bullet' };
-
-// ════════════════════════════════════════
-//  RENDER LOANS
-// ════════════════════════════════════════
 function renderLoans() {
   const loans = data.loans || [];
-  const listEl = document.getElementById('loan-list');
-  const emptyEl = document.getElementById('loan-empty');
 
-  // KPI
-  const totalAmt = loans.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-  const totalMonthly = loans.reduce((s, l) => s + currentMonthlyPayment(l), 0);
-  document.getElementById('kpi-loan-total').textContent    = fmtWon(totalAmt) || '0원';
-  document.getElementById('kpi-loan-monthly').textContent  = fmtWon(totalMonthly) || '0원';
-  document.getElementById('kpi-loan-count').textContent    = loans.length > 0 ? `대출 ${loans.length}건` : '대출 없음';
+  const list =
+    document.getElementById("loan-list");
 
-  // 목록 초기화 (empty 제외)
-  Array.from(listEl.children).forEach(el => { if (el.id !== 'loan-empty') el.remove(); });
+  const empty =
+    document.getElementById("loan-empty");
 
-  if (loans.length === 0) { emptyEl.style.display='block'; return; }
-  emptyEl.style.display = 'none';
+  const totalOriginal =
+    loans.reduce(
+      (sum, loan) =>
+        sum + Number(loan.amount || 0),
+      0
+    );
 
-  loans.forEach((loan, idx) => {
-    const res = calcLoan(loan);
-    const typeCls   = LOAN_TYPE_CLS[loan.type]   || LOAN_TYPE_CLS['equal-total'];
-    const typeLabel = LOAN_TYPE_LABEL[loan.type] || '원리금균등';
-    const monthlyNow = currentMonthlyPayment(loan);
+  const progressList =
+    loans.map((loan) =>
+      loanProgress(loan)
+    );
 
-    let repayDesc = '-', repayNote = '';
-    if (res) {
-      if (loan.type === 'equal-total') {
-        repayDesc = fmtWon(res.repayMonthly1) + '/월 (고정)';
-      } else if (loan.type === 'equal-princ') {
-        repayDesc = fmtWon(res.repayMonthly1) + '/월';
-        repayNote = `→ 말회 ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
-      } else {
-        repayDesc = fmtWon(res.graceMonthly) + '/월 (이자만)';
-        repayNote = '만기에 원금 일시상환';
+  const totalRemaining =
+    progressList.reduce(
+      (sum, progress) =>
+        sum +
+        progress.remainingPrincipal,
+      0
+    );
+
+  const totalRepaid =
+    totalOriginal -
+    totalRemaining;
+
+  const totalPercent =
+    totalOriginal > 0
+      ? Math.min(
+          100,
+          Math.round(
+            totalRepaid /
+            totalOriginal *
+            1000
+          ) / 10
+        )
+      : 0;
+
+  const monthlyTotal =
+    loans.reduce(
+      (sum, loan) =>
+        sum +
+        currentMonthlyPayment(loan),
+      0
+    );
+
+  document.getElementById(
+    "kpi-loan-remaining"
+  ).textContent =
+    fmtFull(totalRemaining);
+
+  document.getElementById(
+    "kpi-loan-detail"
+  ).textContent =
+    `남은 원금 · 상환 완료 ${fmtFull(totalRepaid)} / ` +
+    `최초 원금 ${fmtFull(totalOriginal)}`;
+
+  document.getElementById(
+    "kpi-loan-pct"
+  ).textContent =
+    totalPercent + "%";
+
+  document.getElementById(
+    "pb-loan"
+  ).style.width =
+    totalPercent + "%";
+
+  document.getElementById(
+    "kpi-loan-monthly"
+  ).textContent =
+    fmtFull(monthlyTotal);
+
+  Array.from(list.children).forEach(
+    (element) => {
+      if (element.id !== "loan-empty") {
+        element.remove();
       }
     }
-    // 현재 단계 판별
-    const inGrace = res && res.graceMonths > 0 && monthlyNow === res.graceMonthly;
-    const phaseLabel = inGrace ? '거치 중 (이자만)' : '원금+이자 상환 중';
-    const totalTerm = (Number(loan.grace)||0) + (Number(loan.period)||0);
+  );
 
-    const card = document.createElement('div');
-    card.className = 'loan-card';
+  if (!loans.length) {
+    empty.style.display = "block";
+    return;
+  }
+
+  empty.style.display = "none";
+
+  loans.forEach((loan, index) => {
+    const result = calcLoan(loan);
+    const progress = loanProgress(loan);
+    const nextPayment = nextLoanPayment(loan);
+
+    const typeLabel =
+      LOAN_TYPE_LABEL[loan.type] ||
+      "원리금균등";
+
+    const typeClass =
+      LOAN_TYPE_CLS[loan.type] ||
+      "loan-type-equal-total";
+
+    const totalMonths =
+      Number(loan.grace || 0) +
+      Number(loan.period || 0);
+
+    let phaseText = "상환 정보 없음";
+
+    if (nextPayment) {
+      phaseText =
+        nextPayment.phase === "grace"
+          ? "거치기간 · 이자만 납부"
+          : loan.type === "bullet"
+            ? "만기일시상환"
+            : "원금 + 이자 상환";
+    } else if (progress.percent >= 100) {
+      phaseText = "상환 완료";
+    }
+
+    const card =
+      document.createElement("div");
+
+    card.className = "loan-card";
+
     card.innerHTML = `
       <div class="loan-card-header">
         <div>
-          <div class="loan-card-name">${esc(loan.name || '대출')}</div>
-          ${loan.memo ? `<div style="font-size:0.75rem;color:#8b92a5;margin-top:2px">${esc(loan.memo)}</div>` : ''}
+          <div class="loan-card-name">
+            ${esc(loan.name || "대출")}
+          </div>
+
+          ${
+            loan.memo
+              ? `
+                <div class="loan-card-memo">
+                  ${esc(loan.memo)}
+                </div>
+              `
+              : ""
+          }
         </div>
-        <span class="loan-card-type ${typeCls}">${typeLabel}</span>
+
+        <span class="loan-card-type ${typeClass}">
+          ${typeLabel}
+        </span>
       </div>
+
       <div class="loan-grid">
+
         <div class="loan-stat">
-          <div class="loan-stat-label">대출금액</div>
-          <div class="loan-stat-value">${fmtWon(loan.amount)}</div>
+          <div class="loan-stat-label">
+            최초 대출원금
+          </div>
+
+          <div class="loan-stat-value">
+            ${fmtFull(loan.amount)}
+          </div>
         </div>
+
         <div class="loan-stat">
-          <div class="loan-stat-label">연 금리</div>
-          <div class="loan-stat-value">${loan.rate || 0}%</div>
+          <div class="loan-stat-label">
+            남은 원금
+          </div>
+
+          <div
+            class="loan-stat-value"
+            style="color:#0d9488"
+          >
+            ${fmtFull(progress.remainingPrincipal)}
+          </div>
         </div>
+
         <div class="loan-stat">
-          <div class="loan-stat-label">총 기간</div>
-          <div class="loan-stat-value">${Math.floor(totalTerm/12)}년 ${totalTerm%12?totalTerm%12+'개월':''}</div>
+          <div class="loan-stat-label">
+            원금 상환 완료
+          </div>
+
+          <div class="loan-stat-value">
+            ${progress.percent}%
+          </div>
         </div>
+
         <div class="loan-stat">
-          <div class="loan-stat-label">실행일</div>
-          <div class="loan-stat-value">${loan.startDate ? fmtDate(loan.startDate) : '-'}</div>
+          <div class="loan-stat-label">
+            연 금리
+          </div>
+
+          <div class="loan-stat-value">
+            ${loan.rate || 0}%
+          </div>
         </div>
+
         <div class="loan-stat">
-          <div class="loan-stat-label">거치기간</div>
-          <div class="loan-stat-value">${loan.grace ? loan.grace + '개월' : '없음'}</div>
+          <div class="loan-stat-label">
+            대출 실행일
+          </div>
+
+          <div class="loan-stat-value">
+            ${
+              loan.startDate
+                ? fmtDate(loan.startDate)
+                : "-"
+            }
+          </div>
         </div>
+
         <div class="loan-stat">
-          <div class="loan-stat-label">총 예상 이자</div>
-          <div class="loan-stat-value" style="color:#f97316">${res ? fmtWon(res.totalInterest) : '-'}</div>
+          <div class="loan-stat-label">
+            매월 납부일
+          </div>
+
+          <div class="loan-stat-value">
+            매월 ${loan.paymentDay || "-"}일
+          </div>
+        </div>
+
+        <div class="loan-stat">
+          <div class="loan-stat-label">
+            거치기간
+          </div>
+
+          <div class="loan-stat-value">
+            ${
+              Number(loan.grace || 0)
+                ? `${loan.grace}개월`
+                : "없음"
+            }
+          </div>
+        </div>
+
+        <div class="loan-stat">
+          <div class="loan-stat-label">
+            총 기간
+          </div>
+
+          <div class="loan-stat-value">
+            ${Math.floor(totalMonths / 12)}년
+            ${
+              totalMonths % 12
+                ? `${totalMonths % 12}개월`
+                : ""
+            }
+          </div>
+        </div>
+
+        <div class="loan-stat">
+          <div class="loan-stat-label">
+            예상 총이자
+          </div>
+
+          <div
+            class="loan-stat-value"
+            style="color:#f97316"
+          >
+            ${
+              result
+                ? fmtFull(result.totalInterest)
+                : "-"
+            }
+          </div>
+        </div>
+
+      </div>
+
+      <div class="progress-wrap" style="margin-top:12px">
+        <div class="progress-label">
+          <span>원금 상환 진행률</span>
+
+          <span>
+            ${fmtCompact(progress.repaidPrincipal)} /
+            ${fmtCompact(progress.originalPrincipal)}
+          </span>
+        </div>
+
+        <div class="progress-bar-bg" style="height:9px">
+          <div
+            class="progress-bar-fill"
+            style="
+              width:${progress.percent}%;
+              background:linear-gradient(90deg,#0d9488,#2dd4bf);
+            "
+          ></div>
         </div>
       </div>
+
       <div class="loan-monthly-box">
-        <div style="flex:1">
-          <div class="loan-monthly-label">${phaseLabel}</div>
-          <div class="loan-monthly-value">${fmtWon(monthlyNow)}/월</div>
-          ${res && res.graceMonths > 0 && inGrace
-            ? `<div class="loan-grace-note">거치 ${res.graceMonths}개월 종료 후 → ${repayDesc}</div>${repayNote?`<div class="loan-grace-note">${repayNote}</div>`:''}`
-            : res && res.graceMonths > 0
-              ? `<div class="loan-grace-note">거치 완료 · ${repayNote}</div>`
-              : `<div class="loan-grace-note">${repayNote}</div>`}
+        <div>
+          <div class="loan-monthly-label">
+            ${phaseText}
+          </div>
+
+          <div class="loan-monthly-value">
+            ${
+              nextPayment
+                ? `${fmtFull(nextPayment.total)}`
+                : "납부 없음"
+            }
+          </div>
+
+          <div class="loan-grace-note">
+            ${
+              nextPayment
+                ? `다음 납부일 ${fmtDate(ymd(nextPayment.dueDate))}`
+                : "모든 예정 회차 완료"
+            }
+          </div>
         </div>
-        ${res && res.graceMonths > 0 ? `
-        <div style="text-align:right;border-left:1px solid rgba(255,255,255,0.25);padding-left:14px;margin-left:8px">
-          <div class="loan-grace-note">거치 ${res.graceMonths}개월</div>
-          <div style="font-size:0.85rem;font-weight:700;color:white;margin-top:2px">${fmtWon(res.graceMonthly)}/월</div>
-          <div class="loan-grace-note">↓ 상환 ${res.n}개월</div>
-          <div style="font-size:0.85rem;font-weight:700;color:white;margin-top:2px">${fmtWon(res.repayMonthly1)}/월</div>
-        </div>` : ''}
-      </div>`;
-    card.onclick = () => openLoanModal(idx);
-    listEl.appendChild(card);
+
+        ${
+          nextPayment
+            ? `
+              <div style="text-align:right">
+                <div class="loan-grace-note">
+                  원금
+                </div>
+
+                <div style="font-size:0.78rem;font-weight:800;color:white">
+                  ${fmtFull(nextPayment.principal)}
+                </div>
+
+                <div class="loan-grace-note">
+                  이자
+                </div>
+
+                <div style="font-size:0.78rem;font-weight:800;color:white">
+                  ${fmtFull(nextPayment.interest)}
+                </div>
+              </div>
+            `
+            : ""
+        }
+      </div>
+    `;
+
+    card.onclick = () =>
+      openLoanModal(index);
+
+    list.appendChild(card);
   });
 }
 
-// ════════════════════════════════════════
-//  LOAN MODAL
-// ════════════════════════════════════════
-function selectLoanType(type) {
-  document.getElementById('loan-type').value = type;
-  document.querySelectorAll('.loan-type-btn').forEach(btn => {
-    const selected = btn.dataset.type === type;
-    btn.style.border = selected ? '2px solid #14b8a6' : '2px solid #e5e7ef';
-    btn.style.background = selected ? '#f0fdfa' : '';
+/* ==================================================
+   모달 공통
+================================================== */
+
+function openModal(id) {
+  document
+    .getElementById(id)
+    .classList.add("show");
+}
+
+function closeModal(id) {
+  document
+    .getElementById(id)
+    .classList.remove("show");
+}
+
+document
+  .querySelectorAll(".modal-overlay")
+  .forEach((overlay) => {
+    overlay.addEventListener(
+      "click",
+      (event) => {
+        if (event.target === overlay) {
+          overlay.classList.remove("show");
+        }
+      }
+    );
   });
+
+/* ==================================================
+   분할납부 입력
+================================================== */
+
+function toggleInstSection() {
+  const checked =
+    document.getElementById(
+      "use-inst"
+    ).checked;
+
+  document.getElementById(
+    "inst-area"
+  ).style.display =
+    checked ? "block" : "none";
+
+  document.getElementById(
+    "simple-fields"
+  ).style.display =
+    checked ? "none" : "block";
+
+  document.getElementById(
+    "inst-ref-label"
+  ).textContent =
+    checked
+      ? "· 분할납부 기준 총액"
+      : "";
+}
+
+function onTotalAmtChange() {
+  recalcInstallmentAmounts();
+  updateInstallmentTotal();
+}
+
+function recalcInstallmentAmounts() {
+  const totalAmount =
+    parseWon(
+      document.getElementById(
+        "item-amount"
+      ).value
+    );
+
+  if (totalAmount <= 0) {
+    return;
+  }
+
+  document
+    .querySelectorAll(".inst-row")
+    .forEach((row) => {
+      const percentInput =
+        row.querySelector(
+          '[data-field="pct"]'
+        );
+
+      const amountInput =
+        row.querySelector(
+          '[data-field="amount"]'
+        );
+
+      const percent =
+        Number(percentInput.value || 0);
+
+      if (percent > 0) {
+        const amount = Math.round(
+          totalAmount *
+          percent /
+          100
+        );
+
+        amountInput.value =
+          fmtWonInput(amount);
+      }
+    });
+}
+
+function onInstallmentPercent(element) {
+  const totalAmount =
+    parseWon(
+      document.getElementById(
+        "item-amount"
+      ).value
+    );
+
+  const row =
+    element.closest(".inst-row");
+
+  const amountInput =
+    row.querySelector(
+      '[data-field="amount"]'
+    );
+
+  if (totalAmount > 0) {
+    const amount = Math.round(
+      totalAmount *
+      Number(element.value || 0) /
+      100
+    );
+
+    amountInput.value =
+      fmtWonInput(amount);
+  }
+
+  updateInstallmentTotal();
+}
+
+function onInstallmentAmount(element) {
+  onWonInput(element);
+
+  const totalAmount =
+    parseWon(
+      document.getElementById(
+        "item-amount"
+      ).value
+    );
+
+  const row =
+    element.closest(".inst-row");
+
+  const percentInput =
+    row.querySelector(
+      '[data-field="pct"]'
+    );
+
+  const amount =
+    parseWon(element.value);
+
+  if (totalAmount > 0) {
+    percentInput.value =
+      (
+        amount /
+        totalAmount *
+        100
+      ).toFixed(2);
+  }
+
+  updateInstallmentTotal();
+}
+
+function updateInstallmentTotal() {
+  let total = 0;
+
+  document
+    .querySelectorAll(
+      '.inst-row [data-field="amount"]'
+    )
+    .forEach((element) => {
+      total += parseWon(element.value);
+    });
+
+  document.getElementById(
+    "inst-total-label"
+  ).textContent =
+    total > 0
+      ? `분할 합계: ${fmtFull(total)}`
+      : "";
+}
+
+function addInstRow(
+  installment = null
+) {
+  const current =
+    installment || {
+      title: "",
+      pct: "",
+      amount: "",
+      date: "",
+      status: "pending"
+    };
+
+  const row =
+    document.createElement("div");
+
+  row.className = "inst-row";
+
+  row.innerHTML = `
+    <div class="inst-row-top">
+      <input
+        class="form-input"
+        placeholder="제목 · 계약금, 중도금 1차 등"
+        value="${esc(current.title)}"
+        data-field="title"
+      >
+
+      <button
+        type="button"
+        class="inst-del-btn"
+        onclick="
+          this.closest('.inst-row').remove();
+          updateInstallmentTotal();
+        "
+      >
+        ×
+      </button>
+    </div>
+
+    <div class="inst-row-bottom">
+
+      <div>
+        <span class="inst-row-label">
+          비율 %
+        </span>
+
+        <input
+          class="form-input"
+          type="number"
+          step="0.01"
+          value="${current.pct || ""}"
+          data-field="pct"
+          oninput="onInstallmentPercent(this)"
+        >
+      </div>
+
+      <div>
+        <span class="inst-row-label">
+          금액 · 원
+        </span>
+
+        <input
+          class="form-input"
+          type="text"
+          inputmode="numeric"
+          value="${fmtWonInput(current.amount)}"
+          data-field="amount"
+          oninput="onInstallmentAmount(this)"
+        >
+      </div>
+
+      <div>
+        <span class="inst-row-label">
+          납부일
+        </span>
+
+        <input
+          class="form-input"
+          type="date"
+          value="${current.date || ""}"
+          data-field="date"
+        >
+      </div>
+
+      <div>
+        <span class="inst-row-label">
+          상태
+        </span>
+
+        <select
+          class="form-input"
+          data-field="status"
+        >
+          <option
+            value="pending"
+            ${
+              current.status === "pending"
+                ? "selected"
+                : ""
+            }
+          >
+            미납
+          </option>
+
+          <option
+            value="due"
+            ${
+              current.status === "due"
+                ? "selected"
+                : ""
+            }
+          >
+            예정
+          </option>
+
+          <option
+            value="paid"
+            ${
+              current.status === "paid"
+                ? "selected"
+                : ""
+            }
+          >
+            완료
+          </option>
+        </select>
+      </div>
+
+    </div>
+  `;
+
+  document.getElementById(
+    "inst-rows"
+  ).appendChild(row);
+
+  updateInstallmentTotal();
+}
+
+function getInstallments() {
+  return Array.from(
+    document.querySelectorAll(
+      ".inst-row"
+    )
+  )
+    .map((row) => ({
+      title:
+        row
+          .querySelector(
+            '[data-field="title"]'
+          )
+          .value
+          .trim(),
+
+      pct:
+        Number(
+          row.querySelector(
+            '[data-field="pct"]'
+          ).value || 0
+        ),
+
+      amount:
+        parseWon(
+          row.querySelector(
+            '[data-field="amount"]'
+          ).value
+        ),
+
+      date:
+        row.querySelector(
+          '[data-field="date"]'
+        ).value,
+
+      status:
+        row.querySelector(
+          '[data-field="status"]'
+        ).value
+    }))
+    .filter(
+      (installment) =>
+        installment.title
+    );
+}
+
+/* ==================================================
+   항목 모달
+================================================== */
+
+function openItemModal(index) {
+  const isNew = index === null;
+
+  document.getElementById(
+    "item-idx"
+  ).value =
+    isNew ? "" : index;
+
+  document.getElementById(
+    "item-delete-btn"
+  ).style.display =
+    isNew ? "none" : "block";
+
+  document.getElementById(
+    "inst-rows"
+  ).innerHTML = "";
+
+  if (isNew) {
+    document.getElementById(
+      "item-name"
+    ).value = "";
+
+    document.getElementById(
+      "item-category"
+    ).value = "기타";
+
+    document.getElementById(
+      "item-amount"
+    ).value = "";
+
+    document.getElementById(
+      "item-duedate"
+    ).value = "";
+
+    document.getElementById(
+      "item-status"
+    ).value = "pending";
+
+    document.getElementById(
+      "item-vendor"
+    ).value = "";
+
+    document.getElementById(
+      "item-memo"
+    ).value = "";
+
+    document.getElementById(
+      "use-inst"
+    ).checked = false;
+  } else {
+    const item = data.items[index];
+
+    document.getElementById(
+      "item-name"
+    ).value = item.name || "";
+
+    document.getElementById(
+      "item-category"
+    ).value =
+      item.category || "기타";
+
+    document.getElementById(
+      "item-amount"
+    ).value =
+      fmtWonInput(item.amount);
+
+    document.getElementById(
+      "item-duedate"
+    ).value =
+      item.dueDate || "";
+
+    document.getElementById(
+      "item-status"
+    ).value =
+      item.status || "pending";
+
+    document.getElementById(
+      "item-vendor"
+    ).value =
+      item.vendor || "";
+
+    document.getElementById(
+      "item-memo"
+    ).value =
+      item.memo || "";
+
+    const hasInstallments =
+      Array.isArray(item.installments) &&
+      item.installments.length;
+
+    document.getElementById(
+      "use-inst"
+    ).checked =
+      Boolean(hasInstallments);
+
+    if (hasInstallments) {
+      item.installments.forEach(
+        (installment) =>
+          addInstRow(installment)
+      );
+    }
+  }
+
+  toggleInstSection();
+  updateInstallmentTotal();
+  openModal("item-modal");
+}
+
+function saveItem() {
+  const indexValue =
+    document.getElementById(
+      "item-idx"
+    ).value;
+
+  const name =
+    document.getElementById(
+      "item-name"
+    ).value.trim();
+
+  if (!name) {
+    alert("항목명을 입력해 주세요.");
+    return;
+  }
+
+  const useInstallments =
+    document.getElementById(
+      "use-inst"
+    ).checked;
+
+  const item = {
+    name,
+    category:
+      document.getElementById(
+        "item-category"
+      ).value,
+
+    amount:
+      parseWon(
+        document.getElementById(
+          "item-amount"
+        ).value
+      ),
+
+    vendor:
+      document.getElementById(
+        "item-vendor"
+      ).value.trim(),
+
+    memo:
+      document.getElementById(
+        "item-memo"
+      ).value.trim(),
+
+    dueDate: "",
+    status: "pending",
+    installments: null
+  };
+
+  if (useInstallments) {
+    const installments =
+      getInstallments();
+
+    if (!installments.length) {
+      alert(
+        "분할 납부 항목을 한 개 이상 입력해 주세요."
+      );
+      return;
+    }
+
+    item.installments =
+      installments;
+
+    item.status =
+      derivedStatus(item);
+  } else {
+    item.dueDate =
+      document.getElementById(
+        "item-duedate"
+      ).value;
+
+    item.status =
+      document.getElementById(
+        "item-status"
+      ).value;
+  }
+
+  if (indexValue === "") {
+    data.items.push(item);
+  } else {
+    data.items[
+      Number(indexValue)
+    ] = item;
+  }
+
+  saveData();
+  closeModal("item-modal");
+  renderAll();
+}
+
+function deleteItem() {
+  if (
+    !confirm(
+      "이 항목을 삭제하시겠습니까?"
+    )
+  ) {
+    return;
+  }
+
+  const index =
+    Number(
+      document.getElementById(
+        "item-idx"
+      ).value
+    );
+
+  data.items.splice(index, 1);
+
+  saveData();
+  closeModal("item-modal");
+  renderAll();
+}
+
+/* ==================================================
+   할 일 모달
+================================================== */
+
+function openTodoModal(index) {
+  const isNew = index === null;
+
+  document.getElementById(
+    "todo-idx"
+  ).value =
+    isNew ? "" : index;
+
+  document.getElementById(
+    "todo-delete-btn"
+  ).style.display =
+    isNew ? "none" : "block";
+
+  if (isNew) {
+    document.getElementById(
+      "todo-name"
+    ).value = "";
+
+    document.getElementById(
+      "todo-note"
+    ).value = "";
+
+    document.getElementById(
+      "todo-category"
+    ).value = "";
+
+    document.getElementById(
+      "todo-priority"
+    ).value = "mid";
+  } else {
+    const todo =
+      data.todos[index];
+
+    document.getElementById(
+      "todo-name"
+    ).value =
+      todo.name || "";
+
+    document.getElementById(
+      "todo-note"
+    ).value =
+      todo.note || "";
+
+    document.getElementById(
+      "todo-category"
+    ).value =
+      todo.category || "";
+
+    document.getElementById(
+      "todo-priority"
+    ).value =
+      todo.priority || "mid";
+  }
+
+  openModal("todo-modal");
+}
+
+function saveTodo() {
+  const indexValue =
+    document.getElementById(
+      "todo-idx"
+    ).value;
+
+  const name =
+    document.getElementById(
+      "todo-name"
+    ).value.trim();
+
+  if (!name) {
+    alert("할 일 항목명을 입력해 주세요.");
+    return;
+  }
+
+  const todo = {
+    name,
+
+    note:
+      document.getElementById(
+        "todo-note"
+      ).value.trim(),
+
+    category:
+      document.getElementById(
+        "todo-category"
+      ).value.trim(),
+
+    priority:
+      document.getElementById(
+        "todo-priority"
+      ).value,
+
+    done:
+      indexValue !== ""
+        ? data.todos[
+            Number(indexValue)
+          ].done
+        : false
+  };
+
+  if (indexValue === "") {
+    data.todos.push(todo);
+  } else {
+    data.todos[
+      Number(indexValue)
+    ] = todo;
+  }
+
+  saveData();
+  closeModal("todo-modal");
+  renderAll();
+}
+
+function deleteTodo() {
+  if (
+    !confirm(
+      "이 할 일을 삭제하시겠습니까?"
+    )
+  ) {
+    return;
+  }
+
+  const index =
+    Number(
+      document.getElementById(
+        "todo-idx"
+      ).value
+    );
+
+  data.todos.splice(index, 1);
+
+  saveData();
+  closeModal("todo-modal");
+  renderAll();
+}
+
+/* ==================================================
+   대출 모달
+================================================== */
+
+function selectLoanType(type) {
+  document.getElementById(
+    "loan-type"
+  ).value = type;
+
+  document
+    .querySelectorAll(
+      ".loan-type-btn"
+    )
+    .forEach((button) => {
+      button.classList.toggle(
+        "selected",
+        button.dataset.type === type
+      );
+    });
+
   calcLoanPreview();
 }
 
-function calcLoanPreview() {
-  const loan = {
-    amount:    parseWon(document.getElementById('loan-amount').value),
-    rate:      Number(document.getElementById('loan-rate').value) || 0,
-    period:    Number(document.getElementById('loan-period').value) || 0,
-    grace:     Number(document.getElementById('loan-grace').value) || 0,
-    type:      document.getElementById('loan-type').value,
-    startDate: document.getElementById('loan-start').value
-  };
-  const preview = document.getElementById('loan-preview');
-  const res = calcLoan(loan);
-  if (!res) { preview.style.display = 'none'; return; }
-  preview.style.display = 'block';
+function onLoanStartChange() {
+  const startDate =
+    document.getElementById(
+      "loan-start"
+    ).value;
 
-  // 거치기간 표시
-  if (loan.grace > 0) {
-    document.getElementById('preview-grace-label').textContent = `거치기간 ${loan.grace}개월 동안`;
-    document.getElementById('preview-grace-amt').textContent   = fmtWon(res.graceMonthly) + '/월';
-  } else {
-    document.getElementById('preview-grace-label').textContent = '거치기간 없음';
-    document.getElementById('preview-grace-amt').textContent   = '–';
+  const paymentDayInput =
+    document.getElementById(
+      "loan-payment-day"
+    );
+
+  if (
+    startDate &&
+    !paymentDayInput.value
+  ) {
+    paymentDayInput.value =
+      Number(
+        startDate.split("-")[2]
+      );
   }
-
-  // 상환기간 표시 (n = loan.period, 거치 유무와 무관)
-  document.getElementById('preview-repay-label').textContent = `거치 후 상환기간 ${loan.period}개월`;
-  if (loan.type === 'equal-total') {
-    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
-    document.getElementById('preview-repay-note').textContent = '매월 동일 (고정)';
-  } else if (loan.type === 'equal-princ') {
-    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.repayMonthly1) + '/월';
-    document.getElementById('preview-repay-note').textContent = `말회 ${fmtWon(res.repayMonthlyLast)}/월 (점감)`;
-  } else {
-    document.getElementById('preview-repay-amt').textContent  = fmtWon(res.graceMonthly) + '/월';
-    document.getElementById('preview-repay-note').textContent = '만기에 원금 일시상환';
-  }
-
-  const totalTerm = (loan.grace || 0) + (loan.period || 0);
-  document.getElementById('preview-summary').textContent =
-    `총 기간: ${totalTerm}개월 (거치 ${loan.grace||0} + 상환 ${loan.period||0})  |  예상 총 이자: ${fmtWon(res.totalInterest)}`;
 }
 
-function openLoanModal(idx) {
-  const isNew = idx === null;
-  document.getElementById('loan-idx').value = isNew ? '' : idx;
-  document.getElementById('loan-delete-btn').style.display = isNew ? 'none' : 'inline-flex';
-  document.getElementById('loan-preview').style.display = 'none';
+function getLoanFormData() {
+  const startDate =
+    document.getElementById(
+      "loan-start"
+    ).value;
 
-  if (!isNew) {
-    const l = data.loans[idx];
-    document.getElementById('loan-name').value   = l.name || '';
-    document.getElementById('loan-amount').value = fmtWonInput(l.amount || 0);
-    document.getElementById('loan-rate').value   = l.rate || '';
-    document.getElementById('loan-period').value = l.period || '';
-    document.getElementById('loan-grace').value  = l.grace || 0;
-    document.getElementById('loan-start').value  = l.startDate || '';
-    document.getElementById('loan-memo').value   = l.memo || '';
-    selectLoanType(l.type || 'equal-total');
-    calcLoanPreview();
-  } else {
-    ['loan-name','loan-amount','loan-rate','loan-period','loan-memo'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('loan-grace').value = 0;
-    document.getElementById('loan-start').value = '';
-    selectLoanType('equal-total');
+  const inferredPaymentDay =
+    startDate
+      ? Number(startDate.split("-")[2])
+      : 1;
+
+  return {
+    name:
+      document.getElementById(
+        "loan-name"
+      ).value.trim(),
+
+    type:
+      document.getElementById(
+        "loan-type"
+      ).value,
+
+    amount:
+      parseWon(
+        document.getElementById(
+          "loan-amount"
+        ).value
+      ),
+
+    rate:
+      Number(
+        document.getElementById(
+          "loan-rate"
+        ).value || 0
+      ),
+
+    startDate,
+
+    paymentDay:
+      Math.max(
+        1,
+        Math.min(
+          31,
+          Number(
+            document.getElementById(
+              "loan-payment-day"
+            ).value ||
+            inferredPaymentDay
+          )
+        )
+      ),
+
+    grace:
+      Math.max(
+        0,
+        Number(
+          document.getElementById(
+            "loan-grace"
+          ).value || 0
+        )
+      ),
+
+    period:
+      Math.max(
+        0,
+        Number(
+          document.getElementById(
+            "loan-period"
+          ).value || 0
+        )
+      ),
+
+    memo:
+      document.getElementById(
+        "loan-memo"
+      ).value.trim()
+  };
+}
+
+function calcLoanPreview() {
+  const loan = getLoanFormData();
+  const preview =
+    document.getElementById(
+      "loan-preview"
+    );
+
+  const result = calcLoan(loan);
+
+  if (!result) {
+    preview.style.display = "none";
+    return;
   }
-  openModal('loan-modal');
+
+  preview.style.display = "block";
+
+  if (result.graceMonths > 0) {
+    document.getElementById(
+      "preview-grace-label"
+    ).textContent =
+      `거치기간 ${result.graceMonths}개월`;
+
+    document.getElementById(
+      "preview-grace-amt"
+    ).textContent =
+      fmtFull(result.graceMonthly);
+  } else {
+    document.getElementById(
+      "preview-grace-label"
+    ).textContent =
+      "거치기간 없음";
+
+    document.getElementById(
+      "preview-grace-amt"
+    ).textContent = "-";
+  }
+
+  document.getElementById(
+    "preview-repay-label"
+  ).textContent =
+    `상환기간 ${result.repayMonths}개월`;
+
+  if (loan.type === "equal-total") {
+    document.getElementById(
+      "preview-repay-amt"
+    ).textContent =
+      fmtFull(
+        result.repayMonthlyFirst
+      );
+
+    document.getElementById(
+      "preview-repay-note"
+    ).textContent =
+      "매월 동일 금액";
+  } else if (
+    loan.type === "equal-princ"
+  ) {
+    document.getElementById(
+      "preview-repay-amt"
+    ).textContent =
+      fmtFull(
+        result.repayMonthlyFirst
+      );
+
+    document.getElementById(
+      "preview-repay-note"
+    ).textContent =
+      `마지막 회차 약 ${fmtFull(result.repayMonthlyLast)}`;
+  } else {
+    document.getElementById(
+      "preview-repay-amt"
+    ).textContent =
+      fmtFull(
+        result.graceMonthly
+      );
+
+    document.getElementById(
+      "preview-repay-note"
+    ).textContent =
+      "마지막 회차에 원금 전액";
+  }
+
+  const totalMonths =
+    result.graceMonths +
+    result.repayMonths;
+
+  document.getElementById(
+    "preview-summary"
+  ).textContent =
+    `총 기간 ${totalMonths}개월 · ` +
+    `매월 ${loan.paymentDay}일 납부 · ` +
+    `예상 총이자 ${fmtFull(result.totalInterest)}`;
+}
+
+function openLoanModal(index) {
+  const isNew = index === null;
+
+  document.getElementById(
+    "loan-idx"
+  ).value =
+    isNew ? "" : index;
+
+  document.getElementById(
+    "loan-delete-btn"
+  ).style.display =
+    isNew ? "none" : "block";
+
+  if (isNew) {
+    document.getElementById(
+      "loan-name"
+    ).value = "";
+
+    document.getElementById(
+      "loan-amount"
+    ).value = "";
+
+    document.getElementById(
+      "loan-rate"
+    ).value = "";
+
+    document.getElementById(
+      "loan-start"
+    ).value = "";
+
+    document.getElementById(
+      "loan-payment-day"
+    ).value = "";
+
+    document.getElementById(
+      "loan-grace"
+    ).value = 0;
+
+    document.getElementById(
+      "loan-period"
+    ).value = "";
+
+    document.getElementById(
+      "loan-memo"
+    ).value = "";
+
+    selectLoanType("equal-total");
+  } else {
+    const loan =
+      data.loans[index];
+
+    document.getElementById(
+      "loan-name"
+    ).value =
+      loan.name || "";
+
+    document.getElementById(
+      "loan-amount"
+    ).value =
+      fmtWonInput(loan.amount);
+
+    document.getElementById(
+      "loan-rate"
+    ).value =
+      loan.rate || "";
+
+    document.getElementById(
+      "loan-start"
+    ).value =
+      loan.startDate || "";
+
+    document.getElementById(
+      "loan-payment-day"
+    ).value =
+      loan.paymentDay || "";
+
+    document.getElementById(
+      "loan-grace"
+    ).value =
+      Number(loan.grace || 0);
+
+    document.getElementById(
+      "loan-period"
+    ).value =
+      Number(loan.period || 0);
+
+    document.getElementById(
+      "loan-memo"
+    ).value =
+      loan.memo || "";
+
+    selectLoanType(
+      loan.type ||
+      "equal-total"
+    );
+  }
+
+  calcLoanPreview();
+  openModal("loan-modal");
 }
 
 function saveLoan() {
-  const idx = document.getElementById('loan-idx').value;
-  const obj = {
-    name:      document.getElementById('loan-name').value.trim(),
-    type:      document.getElementById('loan-type').value,
-    amount:    parseWon(document.getElementById('loan-amount').value),
-    rate:      Number(document.getElementById('loan-rate').value) || 0,
-    period:    Number(document.getElementById('loan-period').value) || 0,
-    grace:     Number(document.getElementById('loan-grace').value) || 0,
-    startDate: document.getElementById('loan-start').value,
-    memo:      document.getElementById('loan-memo').value
-  };
-  if (!data.loans) data.loans = [];
-  if (idx === '') data.loans.push(obj);
-  else data.loans[Number(idx)] = obj;
-  saveData(); closeModal('loan-modal'); renderAll();
+  const indexValue =
+    document.getElementById(
+      "loan-idx"
+    ).value;
+
+  const loan =
+    getLoanFormData();
+
+  if (!loan.name) {
+    alert("대출명을 입력해 주세요.");
+    return;
+  }
+
+  if (loan.amount <= 0) {
+    alert("대출금액을 입력해 주세요.");
+    return;
+  }
+
+  if (!loan.startDate) {
+    alert("대출 실행일을 입력해 주세요.");
+    return;
+  }
+
+  if (loan.period <= 0) {
+    alert("상환기간을 입력해 주세요.");
+    return;
+  }
+
+  if (indexValue === "") {
+    data.loans.push(loan);
+  } else {
+    data.loans[
+      Number(indexValue)
+    ] = loan;
+  }
+
+  saveData();
+  closeModal("loan-modal");
+  renderAll();
 }
 
 function deleteLoan() {
-  data.loans.splice(Number(document.getElementById('loan-idx').value), 1);
-  saveData(); closeModal('loan-modal'); renderAll();
+  if (
+    !confirm(
+      "이 대출을 삭제하시겠습니까?"
+    )
+  ) {
+    return;
+  }
+
+  const index =
+    Number(
+      document.getElementById(
+        "loan-idx"
+      ).value
+    );
+
+  data.loans.splice(index, 1);
+
+  saveData();
+  closeModal("loan-modal");
+  renderAll();
 }
 
-// ════════════════════════════════════════
-//  INIT
-// ════════════════════════════════════════
-(async () => {
+/* ==================================================
+   전체 렌더링
+================================================== */
+
+function renderAll() {
+  updateDday();
+  renderKPI();
+  renderPaymentCalendar();
+  renderCostTable();
+  renderTodos();
+  renderLoans();
+  renderItems();
+}
+
+/* ==================================================
+   초기화
+================================================== */
+
+(async function initializeDashboard() {
   await fetchData();
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.add('hidden');
-  setTimeout(() => overlay.style.display = 'none', 400);
+
+  calendarCursor =
+    data.moveDate
+      ? localDate(data.moveDate)
+      : new Date();
+
+  calendarCursor.setDate(1);
+
+  const overlay =
+    document.getElementById(
+      "loading-overlay"
+    );
+
+  overlay.classList.add("hidden");
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
+
   renderAll();
 })();
 </script>
+
 </body>
 </html>
