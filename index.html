@@ -416,10 +416,8 @@ header h1 {
 
 .payment-calendar-scroll {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding-bottom: 4px;
-  -webkit-overflow-scrolling: touch;
 }
 
 .calendar-weekday {
@@ -497,6 +495,10 @@ header h1 {
   white-space: nowrap;
 }
 
+.calendar-amount-label {
+  display: inline;
+}
+
 .calendar-amount.paid {
   background: #e8faf0;
   color: #16a34a;
@@ -526,6 +528,10 @@ header h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-top: 2px;
+}
+
+.calendar-more {
+  display: none;
 }
 
 .monthly-payment-list {
@@ -710,87 +716,6 @@ header h1 {
 .total-bar-value {
   font-size: 1.2rem;
   font-weight: 800;
-}
-
-/* ================================
-   할 일
-================================ */
-
-.todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 11px 8px;
-  border-bottom: 1px solid #f0f2f5;
-  border-radius: 8px;
-}
-
-.todo-item:hover {
-  background: #fafbff;
-}
-
-.todo-checkbox {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  border: 2px solid #cbd5e1;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  cursor: pointer;
-}
-
-.todo-checkbox.checked {
-  background: #6366f1;
-  border-color: #6366f1;
-}
-
-.todo-text {
-  flex: 1;
-  cursor: pointer;
-}
-
-.todo-label {
-  font-size: 0.87rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.todo-label.done {
-  color: #b0b7c3;
-  text-decoration: line-through;
-}
-
-.todo-note {
-  color: #8b92a5;
-  font-size: 0.74rem;
-  margin-top: 2px;
-}
-
-.todo-priority {
-  flex-shrink: 0;
-  padding: 2px 7px;
-  border-radius: 99px;
-  font-size: 0.66rem;
-  font-weight: 800;
-}
-
-.priority-high {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-.priority-mid {
-  background: #fff3e8;
-  color: #f97316;
-}
-
-.priority-low {
-  background: #f0f2f5;
-  color: #8b92a5;
 }
 
 /* ================================
@@ -1284,34 +1209,62 @@ header h1 {
 
 @media (max-width: 760px) {
   .payment-calendar {
-    min-width: 840px;
-    gap: 5px;
+    width: 100%;
+    min-width: 0;
+    gap: 3px;
   }
 
   .calendar-day {
-    min-height: 132px;
-    padding: 7px;
+    min-height: 54px;
+    border-radius: 7px;
+    padding: 3px 2px;
+  }
+
+  .calendar-date {
+    margin-bottom: 3px;
+    font-size: 0.68rem;
+  }
+
+  .today-label {
+    display: none;
   }
 
   .calendar-amount {
-    padding: 4px 5px;
-    font-size: 0.64rem;
+    margin-top: 1px;
+    padding: 1px 2px;
+    font-size: 0.46rem;
+    line-height: 1.18;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  .calendar-detail {
+  .calendar-amount-label {
     display: block;
+  }
+
+  .calendar-detail {
+    display: none;
   }
 
   .calendar-count {
     display: block;
+    margin-top: 2px;
+    font-size: 0.48rem;
   }
 
   .calendar-detail-item {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .calendar-more {
+    display: block;
+    margin-top: 1px;
+    color: #64748b;
+    font-size: 0.48rem;
+    font-weight: 700;
+    line-height: 1.2;
   }
 }
 
@@ -1371,10 +1324,21 @@ header h1 {
 
   .calendar-toolbar {
     align-items: flex-start;
+    flex-direction: column;
   }
 
   .calendar-month-title {
     font-size: 0.95rem;
+  }
+
+  .calendar-nav {
+    width: 100%;
+  }
+
+  .calendar-nav button {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 8px;
   }
 }
 
@@ -1389,6 +1353,27 @@ header h1 {
 
   .inst-row {
     padding: 10px;
+  }
+
+  .container {
+    padding: 16px 10px;
+  }
+
+  .card {
+    padding: 18px 12px;
+  }
+
+  .calendar-weekday {
+    font-size: 0.64rem;
+  }
+
+  .calendar-day {
+    min-height: 50px;
+    padding: 3px 1px;
+  }
+
+  .calendar-amount {
+    font-size: 0.43rem;
   }
 }
 </style>
@@ -1454,29 +1439,6 @@ header h1 {
       <div class="card-value" id="kpi-remain">-</div>
       <div class="card-sub">완료되지 않은 비용 합계</div>
       <div class="card-link-hint">↓ 항목 리스트</div>
-    </div>
-
-    <div class="card card-kpi" onclick="scrollToSection('section-todo')">
-      <div class="card-accent" style="background:#a855f7"></div>
-      <div class="card-title">할 일 진행률</div>
-      <div class="card-value" id="kpi-todo">-</div>
-
-      <div class="progress-wrap">
-        <div class="progress-label">
-          <span>완료 항목</span>
-          <span id="kpi-todo-detail">-</span>
-        </div>
-
-        <div class="progress-bar-bg">
-          <div
-            class="progress-bar-fill"
-            id="pb-todo"
-            style="background:#a855f7;width:0%"
-          ></div>
-        </div>
-      </div>
-
-      <div class="card-link-hint">↓ 할 일 목록</div>
     </div>
 
     <div class="card card-kpi" onclick="scrollToSection('section-calendar')">
@@ -1562,7 +1524,7 @@ header h1 {
       </div>
     </div>
 
-    <div class="payment-calendar-scroll" aria-label="월간 납부 달력; 좌우로 스크롤할 수 있습니다">
+    <div class="payment-calendar-scroll" aria-label="월간 납부 달력">
       <div class="payment-calendar" id="payment-calendar"></div>
     </div>
 
@@ -1617,53 +1579,6 @@ header h1 {
     <div class="total-bar">
       <div class="total-bar-label">분양가 포함 전체 비용 합계</div>
       <div class="total-bar-value" id="total-bar-val">-</div>
-    </div>
-
-  </div>
-
-  <!-- 할 일 -->
-  <div class="card section-gap" id="section-todo">
-
-    <div class="section-header">
-      <div class="section-title">
-        <div class="section-icon" style="background:#f3e8ff">✅</div>
-        입주 준비 할 일
-      </div>
-
-      <button class="btn-add" onclick="openTodoModal(null)">
-        + 항목 추가
-      </button>
-    </div>
-
-    <div class="tabs" id="todo-tabs"></div>
-    <div id="todo-list"></div>
-
-    <div
-      style="
-        margin-top:16px;
-        background:#f7f8fc;
-        border-radius:12px;
-        padding:14px 16px;
-      "
-    >
-      <div class="progress-label" style="margin-bottom:8px">
-        <span style="font-weight:700;color:#1a1a2e">전체 진행률</span>
-        <span
-          id="todo-overall-pct"
-          style="font-weight:800;color:#a855f7"
-        >-</span>
-      </div>
-
-      <div class="progress-bar-bg" style="height:10px">
-        <div
-          class="progress-bar-fill"
-          id="pb-todo-overall"
-          style="
-            background:linear-gradient(90deg,#6366f1,#a855f7);
-            width:0%;
-          "
-        ></div>
-      </div>
     </div>
 
   </div>
@@ -1981,74 +1896,6 @@ header h1 {
 </div>
 
 <!-- ==================================================
-     할 일 모달
-================================================== -->
-
-<div class="modal-overlay" id="todo-modal">
-  <div class="modal">
-
-    <div class="modal-title">✅ 할 일 항목</div>
-
-    <input type="hidden" id="todo-idx">
-
-    <div class="form-group">
-      <label class="form-label">항목명</label>
-      <input class="form-input" id="todo-name">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">메모</label>
-      <input class="form-input" id="todo-note">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">카테고리</label>
-      <input
-        class="form-input"
-        id="todo-category"
-        placeholder="예: 시공, 환경, 생활, 행정"
-      >
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">우선순위</label>
-
-      <select class="form-input" id="todo-priority">
-        <option value="high">높음 🔴</option>
-        <option value="mid">중간 🟡</option>
-        <option value="low">낮음 ⚪</option>
-      </select>
-    </div>
-
-    <div class="btn-row">
-      <button
-        class="btn btn-secondary"
-        onclick="closeModal('todo-modal')"
-      >
-        취소
-      </button>
-
-      <button
-        class="btn btn-danger"
-        id="todo-delete-btn"
-        onclick="deleteTodo()"
-        style="display:none"
-      >
-        삭제
-      </button>
-
-      <button
-        class="btn btn-primary"
-        onclick="saveTodo()"
-      >
-        저장
-      </button>
-    </div>
-
-  </div>
-</div>
-
-<!-- ==================================================
      대출 모달
 ================================================== -->
 
@@ -2356,8 +2203,6 @@ let data = null;
 let saveTimer = null;
 
 let activeItemTab = "전체";
-let activeTodoTab = "전체";
-
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 
@@ -2735,74 +2580,6 @@ function defaultItems() {
   ];
 }
 
-function defaultTodos() {
-  return [
-    {
-      name: "붙박이장 시공 견적",
-      note: "최소 3개 업체 비교",
-      category: "시공",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "새집증후군 베이크아웃",
-      note: "입주 전 2~3일 환기",
-      category: "환경",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "줄눈 시공",
-      note: "타일 사이 오염 방지",
-      category: "시공",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "냉장고장 제작 / 시공",
-      note: "냉장고 크기 확인",
-      category: "시공",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "인터넷 이전 신청",
-      note: "통신사 비교",
-      category: "생활",
-      priority: "mid",
-      done: false
-    },
-    {
-      name: "가스 개통 신청",
-      note: "입주일 전 신청",
-      category: "생활",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "이사 업체 선정",
-      note: "사다리차 포함 여부 확인",
-      category: "이사",
-      priority: "high",
-      done: false
-    },
-    {
-      name: "각종 주소 변경",
-      note: "은행, 보험, 병원 등",
-      category: "행정",
-      priority: "mid",
-      done: false
-    },
-    {
-      name: "하자 점검 신청",
-      note: "입주 전 점검",
-      category: "시공",
-      priority: "high",
-      done: false
-    }
-  ];
-}
-
 /* ==================================================
    기존 데이터 원 단위 마이그레이션
 ================================================== */
@@ -2892,7 +2669,7 @@ async function fetchData() {
       }
 
       if (!Array.isArray(data.todos)) {
-        data.todos = defaultTodos();
+        data.todos = [];
         needsSave = true;
       }
 
@@ -2941,7 +2718,7 @@ async function fetchData() {
         dataVersion: CURRENT_DATA_VERSION,
         moveDate: "2026-08-15",
         items: defaultItems(),
-        todos: defaultTodos(),
+        todos: [],
         loans: []
       };
 
@@ -2954,7 +2731,7 @@ async function fetchData() {
       dataVersion: CURRENT_DATA_VERSION,
       moveDate: "2026-08-15",
       items: defaultItems(),
-      todos: defaultTodos(),
+      todos: [],
       loans: []
     };
   }
@@ -3722,43 +3499,6 @@ function renderKPI() {
     incompleteCount.toLocaleString("ko-KR") +
     "건";
 
-  const todos = data.todos || [];
-
-  const completedTodos =
-    todos.filter(
-      (todo) => todo.done
-    ).length;
-
-  const todoPercent =
-    todos.length > 0
-      ? Math.round(
-          completedTodos /
-          todos.length *
-          100
-        )
-      : 0;
-
-  document.getElementById(
-    "kpi-todo"
-  ).textContent = todoPercent + "%";
-
-  document.getElementById(
-    "kpi-todo-detail"
-  ).textContent =
-    `${completedTodos.toLocaleString("ko-KR")} / ` +
-    `${todos.length.toLocaleString("ko-KR")}`;
-
-  document.getElementById(
-    "pb-todo"
-  ).style.width = todoPercent + "%";
-
-  document.getElementById(
-    "todo-overall-pct"
-  ).textContent = todoPercent + "%";
-
-  document.getElementById(
-    "pb-todo-overall"
-  ).style.width = todoPercent + "%";
 }
 
 /* ==================================================
@@ -4296,7 +4036,8 @@ function renderPaymentCalendar() {
               class="calendar-amount paid"
               title="${fmtFull(paidTotal)}"
             >
-              완료 ${fmtFull(paidTotal)}
+              <span class="calendar-amount-label">완료</span>
+              ${fmtFull(paidTotal)}
             </span>
           `
           : ""
@@ -4309,7 +4050,8 @@ function renderPaymentCalendar() {
               class="calendar-amount due"
               title="${fmtFull(dueTotal)}"
             >
-              예정 ${fmtFull(dueTotal)}
+              <span class="calendar-amount-label">예정</span>
+              ${fmtFull(dueTotal)}
             </span>
           `
           : ""
@@ -4320,6 +4062,10 @@ function renderPaymentCalendar() {
           ? `
             <div class="calendar-count">
               ${dateEntries.length}건
+            </div>
+
+            <div class="calendar-more">
+              아래 목록 확인
             </div>
 
             <div class="calendar-detail">
@@ -4729,138 +4475,6 @@ function cycleStatus(index, event) {
       (currentIndex + 1) %
       statuses.length
     ];
-
-  saveData();
-  renderAll();
-}
-
-/* ==================================================
-   할 일 렌더링
-================================================== */
-
-function renderTodos() {
-  const todos = data.todos || [];
-
-  const categories = [
-    "전체",
-    ...new Set(
-      todos
-        .map((todo) => todo.category)
-        .filter(Boolean)
-    )
-  ];
-
-  const tabs =
-    document.getElementById("todo-tabs");
-
-  tabs.innerHTML = "";
-
-  categories.forEach(
-    (category) => {
-      const tab =
-        document.createElement("span");
-
-      tab.className =
-        "tab" +
-        (
-          category === activeTodoTab
-            ? " active"
-            : ""
-        );
-
-      tab.textContent = category;
-
-      tab.onclick = () => {
-        activeTodoTab = category;
-        renderTodos();
-      };
-
-      tabs.appendChild(tab);
-    }
-  );
-
-  const list =
-    document.getElementById("todo-list");
-
-  list.innerHTML = "";
-
-  const filteredTodos =
-    activeTodoTab === "전체"
-      ? todos
-      : todos.filter(
-          (todo) =>
-            todo.category ===
-            activeTodoTab
-        );
-
-  filteredTodos.forEach((todo) => {
-    const index =
-      todos.indexOf(todo);
-
-    const priorityClass =
-      todo.priority === "high"
-        ? "priority-high"
-        : todo.priority === "mid"
-          ? "priority-mid"
-          : "priority-low";
-
-    const priorityLabel =
-      todo.priority === "high"
-        ? "긴급"
-        : todo.priority === "mid"
-          ? "중간"
-          : "여유";
-
-    const element =
-      document.createElement("div");
-
-    element.className = "todo-item";
-
-    element.innerHTML = `
-      <div
-        class="todo-checkbox ${todo.done ? "checked" : ""}"
-        onclick="toggleTodo(${index},event)"
-      >
-        ${todo.done ? "✓" : ""}
-      </div>
-
-      <div
-        class="todo-text"
-        onclick="openTodoModal(${index})"
-      >
-        <div
-          class="todo-label ${todo.done ? "done" : ""}"
-        >
-          ${esc(todo.name)}
-        </div>
-
-        ${
-          todo.note
-            ? `
-              <div class="todo-note">
-                ${esc(todo.note)}
-              </div>
-            `
-            : ""
-        }
-      </div>
-
-      <span
-        class="todo-priority ${priorityClass}"
-      >
-        ${priorityLabel}
-      </span>
-    `;
-
-    list.appendChild(element);
-  });
-}
-
-function toggleTodo(index, event) {
-  event.stopPropagation();
-
-  data.todos[index].done =
-    !data.todos[index].done;
 
   saveData();
   renderAll();
@@ -5810,145 +5424,6 @@ function deleteItem() {
 }
 
 /* ==================================================
-   할 일 모달
-================================================== */
-
-function openTodoModal(index) {
-  const isNew = index === null;
-
-  document.getElementById(
-    "todo-idx"
-  ).value =
-    isNew ? "" : index;
-
-  document.getElementById(
-    "todo-delete-btn"
-  ).style.display =
-    isNew ? "none" : "block";
-
-  if (isNew) {
-    document.getElementById(
-      "todo-name"
-    ).value = "";
-
-    document.getElementById(
-      "todo-note"
-    ).value = "";
-
-    document.getElementById(
-      "todo-category"
-    ).value = "";
-
-    document.getElementById(
-      "todo-priority"
-    ).value = "mid";
-  } else {
-    const todo =
-      data.todos[index];
-
-    document.getElementById(
-      "todo-name"
-    ).value =
-      todo.name || "";
-
-    document.getElementById(
-      "todo-note"
-    ).value =
-      todo.note || "";
-
-    document.getElementById(
-      "todo-category"
-    ).value =
-      todo.category || "";
-
-    document.getElementById(
-      "todo-priority"
-    ).value =
-      todo.priority || "mid";
-  }
-
-  openModal("todo-modal");
-}
-
-function saveTodo() {
-  const indexValue =
-    document.getElementById(
-      "todo-idx"
-    ).value;
-
-  const name =
-    document.getElementById(
-      "todo-name"
-    ).value.trim();
-
-  if (!name) {
-    alert("할 일 항목명을 입력해 주세요.");
-    return;
-  }
-
-  const todo = {
-    name,
-
-    note:
-      document.getElementById(
-        "todo-note"
-      ).value.trim(),
-
-    category:
-      document.getElementById(
-        "todo-category"
-      ).value.trim(),
-
-    priority:
-      document.getElementById(
-        "todo-priority"
-      ).value,
-
-    done:
-      indexValue !== ""
-        ? data.todos[
-            Number(indexValue)
-          ].done
-        : false
-  };
-
-  if (indexValue === "") {
-    data.todos.push(todo);
-  } else {
-    data.todos[
-      Number(indexValue)
-    ] = todo;
-  }
-
-  saveData();
-  closeModal("todo-modal");
-  renderAll();
-}
-
-function deleteTodo() {
-  if (
-    !confirm(
-      "이 할 일을 삭제하시겠습니까?"
-    )
-  ) {
-    return;
-  }
-
-  const index =
-    Number(
-      document.getElementById(
-        "todo-idx"
-      ).value
-    );
-
-  data.todos.splice(index, 1);
-
-  saveData();
-  closeModal("todo-modal");
-  renderAll();
-}
-
-/* ==================================================
    대출 모달
 ================================================== */
 
@@ -6341,7 +5816,6 @@ function renderAll() {
   renderKPI();
   renderPaymentCalendar();
   renderCostTable();
-  renderTodos();
   renderLoans();
   renderItems();
 }
