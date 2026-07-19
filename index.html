@@ -414,6 +414,14 @@ header h1 {
   gap: 6px;
 }
 
+.payment-calendar-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
 .calendar-weekday {
   padding: 7px 2px;
   text-align: center;
@@ -519,6 +527,85 @@ header h1 {
   white-space: nowrap;
   margin-top: 2px;
 }
+
+.monthly-payment-list {
+  margin-top: 18px;
+  border-top: 1px solid #e5e7ef;
+  padding-top: 16px;
+}
+
+.monthly-payment-list-title {
+  margin-bottom: 10px;
+  color: #1a1a2e;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.monthly-payment-empty {
+  padding: 18px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #8b92a5;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.monthly-payment-date-group {
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7ef;
+  border-radius: 11px;
+  background: white;
+}
+
+.monthly-payment-date-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #f7f8fc;
+}
+
+.monthly-payment-date-label {
+  color: #1a1a2e;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.monthly-payment-date-total {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.monthly-payment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid #f0f2f5;
+}
+
+.monthly-payment-item-name {
+  min-width: 0;
+  color: #334155;
+  font-size: 0.79rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.monthly-payment-item-amount {
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.monthly-payment-item-amount.paid { color: #16a34a; }
+.monthly-payment-item-amount.due { color: #ea580c; }
 
 .calendar-legend {
   display: flex;
@@ -1072,6 +1159,16 @@ header h1 {
   gap: 6px;
 }
 
+.inst-field {
+  min-width: 0;
+}
+
+.inst-field .form-input {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
 .inst-row-label {
   display: block;
   margin-bottom: 2px;
@@ -1186,22 +1283,35 @@ header h1 {
 }
 
 @media (max-width: 760px) {
+  .payment-calendar {
+    min-width: 840px;
+    gap: 5px;
+  }
+
   .calendar-day {
-    min-height: 92px;
-    padding: 5px;
+    min-height: 132px;
+    padding: 7px;
   }
 
   .calendar-amount {
-    padding: 3px 4px;
-    font-size: 0.59rem;
+    padding: 4px 5px;
+    font-size: 0.64rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .calendar-detail {
-    display: none;
+    display: block;
   }
 
   .calendar-count {
-    display: none;
+    display: block;
+  }
+
+  .calendar-detail-item {
+    font-size: 0.64rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -1232,7 +1342,31 @@ header h1 {
   }
 
   .inst-row-bottom {
-    grid-template-columns: 68px 1fr;
+    grid-template-columns: minmax(72px, 0.55fr) minmax(0, 1.45fr);
+    gap: 10px 8px;
+  }
+
+  .inst-field-date,
+  .inst-field-status {
+    grid-column: 1 / -1;
+  }
+
+  .inst-field input[type="date"],
+  .inst-field select {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .monthly-payment-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .monthly-payment-item-amount {
+    white-space: normal;
   }
 
   .calendar-toolbar {
@@ -1253,12 +1387,8 @@ header h1 {
     grid-template-columns: 1fr;
   }
 
-  .calendar-day {
-    min-height: 78px;
-  }
-
-  .calendar-amount {
-    font-size: 0.55rem;
+  .inst-row {
+    padding: 10px;
   }
 }
 </style>
@@ -1432,7 +1562,9 @@ header h1 {
       </div>
     </div>
 
-    <div class="payment-calendar" id="payment-calendar"></div>
+    <div class="payment-calendar-scroll" aria-label="월간 납부 달력; 좌우로 스크롤할 수 있습니다">
+      <div class="payment-calendar" id="payment-calendar"></div>
+    </div>
 
     <div class="calendar-legend">
       <span>
@@ -1449,6 +1581,8 @@ header h1 {
         대출 이자와 원금 납부액도 달력에 포함
       </span>
     </div>
+
+    <div class="monthly-payment-list" id="monthly-payment-list"></div>
 
   </div>
 
@@ -4047,6 +4181,8 @@ function renderPaymentCalendar() {
   const entries =
     collectPaymentEntries();
 
+  renderMonthlyPaymentList(entries);
+
   const entriesByDate = {};
 
   entries.forEach((entry) => {
@@ -4160,7 +4296,7 @@ function renderPaymentCalendar() {
               class="calendar-amount paid"
               title="${fmtFull(paidTotal)}"
             >
-              완료 ${fmtCalendarAmount(paidTotal)}
+              완료 ${fmtFull(paidTotal)}
             </span>
           `
           : ""
@@ -4173,7 +4309,7 @@ function renderPaymentCalendar() {
               class="calendar-amount due"
               title="${fmtFull(dueTotal)}"
             >
-              예정 ${fmtCalendarAmount(dueTotal)}
+              예정 ${fmtFull(dueTotal)}
             </span>
           `
           : ""
@@ -4218,6 +4354,68 @@ function renderPaymentCalendar() {
 
     calendar.appendChild(dayElement);
   }
+}
+
+function renderMonthlyPaymentList(allEntries) {
+  const list = document.getElementById("monthly-payment-list");
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  const monthEntries = allEntries
+    .filter((entry) => {
+      const date = localDate(entry.date);
+      return date.getFullYear() === year && date.getMonth() === month;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+
+  if (!monthEntries.length) {
+    list.innerHTML = `
+      <div class="monthly-payment-list-title">${year}년 ${month + 1}월 납부 내역</div>
+      <div class="monthly-payment-empty">이 달에 등록된 납부 내역이 없습니다.</div>
+    `;
+    return;
+  }
+
+  const groups = {};
+  monthEntries.forEach((entry) => {
+    if (!groups[entry.date]) groups[entry.date] = [];
+    groups[entry.date].push(entry);
+  });
+
+  const groupHtml = Object.keys(groups).sort().map((dateKey) => {
+    const dateEntries = groups[dateKey];
+    const paidTotal = dateEntries.filter((entry) => entry.paid)
+      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const dueTotal = dateEntries.filter((entry) => !entry.paid)
+      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const summary = [
+      paidTotal > 0 ? `완료 ${fmtFull(paidTotal)}` : "",
+      dueTotal > 0 ? `예정 ${fmtFull(dueTotal)}` : ""
+    ].filter(Boolean).join(" · ");
+
+    const itemHtml = dateEntries.map((entry) => `
+      <div class="monthly-payment-item">
+        <div class="monthly-payment-item-name">${entry.paid ? "✓" : "●"} ${esc(entry.name)}</div>
+        <div class="monthly-payment-item-amount ${entry.paid ? "paid" : "due"}">
+          ${entry.paid ? "완료" : "예정"} ${fmtFull(entry.amount)}
+        </div>
+      </div>
+    `).join("");
+
+    return `
+      <div class="monthly-payment-date-group">
+        <div class="monthly-payment-date-head">
+          <div class="monthly-payment-date-label">${fmtDate(dateKey)}</div>
+          <div class="monthly-payment-date-total">${summary}</div>
+        </div>
+        ${itemHtml}
+      </div>
+    `;
+  }).join("");
+
+  list.innerHTML = `
+    <div class="monthly-payment-list-title">${year}년 ${month + 1}월 납부 내역 · ${monthEntries.length}건</div>
+    ${groupHtml}
+  `;
 }
 
 /* ==================================================
@@ -5243,7 +5441,7 @@ function addInstRow(
 
     <div class="inst-row-bottom">
 
-      <div>
+      <div class="inst-field inst-field-pct">
         <span class="inst-row-label">
           비율 %
         </span>
@@ -5258,7 +5456,7 @@ function addInstRow(
         >
       </div>
 
-      <div>
+      <div class="inst-field inst-field-amount">
         <span class="inst-row-label">
           금액 · 원
         </span>
@@ -5273,7 +5471,7 @@ function addInstRow(
         >
       </div>
 
-      <div>
+      <div class="inst-field inst-field-date">
         <span class="inst-row-label">
           납부일
         </span>
@@ -5286,7 +5484,7 @@ function addInstRow(
         >
       </div>
 
-      <div>
+      <div class="inst-field inst-field-status">
         <span class="inst-row-label">
           상태
         </span>
