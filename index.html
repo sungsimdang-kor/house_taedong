@@ -1068,6 +1068,24 @@ header h1 {
   padding: 10px 12px;
 }
 
+.inst-row.auto-balance {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+}
+
+.inst-auto-note {
+  color: #4f46e5;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.form-input[readonly] {
+  background: #eef0f5;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
 .inst-row-top {
   display: flex;
   gap: 6px;
@@ -1082,6 +1100,10 @@ header h1 {
   display: grid;
   grid-template-columns: 68px 1.2fr 130px 83px;
   gap: 6px;
+}
+
+.inst-field-method {
+  grid-column: 1 / -1;
 }
 
 .inst-field {
@@ -1300,7 +1322,8 @@ header h1 {
   }
 
   .inst-field-date,
-  .inst-field-status {
+  .inst-field-status,
+  .inst-field-method {
     grid-column: 1 / -1;
   }
 
@@ -1756,6 +1779,18 @@ header h1 {
         </select>
       </div>
 
+      <div class="form-group">
+        <label class="form-label">납부 방법</label>
+
+        <select class="form-input" id="item-payment-method">
+          <option value="">선택 안 함</option>
+          <option value="card">카드</option>
+          <option value="cash">현금</option>
+          <option value="transfer">계좌이체</option>
+          <option value="other">기타</option>
+        </select>
+      </div>
+
     </div>
 
     <div class="form-group">
@@ -1831,7 +1866,8 @@ header h1 {
           "
         >
           비율을 입력하면 전체 금액을 기준으로 회차 금액이 자동 계산됩니다.
-          회차별 금액도 모두 원 단위로 입력합니다.
+          마지막 잔금은 전체 금액에서 다른 회차 금액을 뺀 값으로 자동 계산됩니다.
+          잔금의 날짜·상태·납부 방법은 직접 설정할 수 있습니다.
         </div>
 
         <div id="inst-rows"></div>
@@ -2699,6 +2735,24 @@ async function fetchData() {
         if (item.installments === undefined) {
           item.installments = null;
         }
+
+        if (item.paymentMethod === undefined) {
+          item.paymentMethod = "";
+          needsSave = true;
+        }
+
+        (item.installments || []).forEach((installment) => {
+          if (installment.paymentMethod === undefined) {
+            installment.paymentMethod = "";
+            needsSave = true;
+          }
+        });
+
+        if (Array.isArray(item.installments) && item.installments.length) {
+          if (normalizeAutoBalanceInstallment(item)) {
+            needsSave = true;
+          }
+        }
       });
 
       data.loans.forEach((loan) => {
@@ -2823,6 +2877,11 @@ function effectiveAmt(item) {
     Array.isArray(item.installments) &&
     item.installments.length
   ) {
+    const itemTotal = Number(item.amount || 0);
+    if (itemTotal > 0) {
+      return itemTotal;
+    }
+
     return item.installments.reduce(
       (sum, installment) =>
         sum + Number(installment.amount || 0),
@@ -2831,6 +2890,83 @@ function effectiveAmt(item) {
   }
 
   return Number(item.amount || 0);
+}
+
+function paymentMethodLabel(value) {
+  return {
+    card: "카드",
+    cash: "현금",
+    transfer: "계좌이체",
+    other: "기타"
+  }[value] || "";
+}
+
+function normalizeAutoBalanceInstallment(item) {
+  if (!Array.isArray(item.installments) || !item.installments.length) {
+    return false;
+  }
+
+  const before = JSON.stringify(item.installments);
+  let balance = item.installments.find(
+    (installment) => installment.autoBalance === true
+  );
+  const legacyBalance = [...item.installments].reverse().find(
+    (installment) =>
+      /^잔금(?:\s|$|\()/.test(String(installment.title || "").trim()) &&
+      installment !== balance
+  );
+
+  if (
+    balance &&
+    Number(balance.amount || 0) === 0 &&
+    legacyBalance
+  ) {
+    item.installments = item.installments.filter(
+      (installment) => installment !== balance
+    );
+    balance = legacyBalance;
+  }
+
+  if (!balance) {
+    balance = [...item.installments].reverse().find(
+      (installment) =>
+        /^잔금(?:\s|$|\()/.test(String(installment.title || "").trim())
+    );
+  }
+
+  if (!balance) {
+    balance = {
+      title: "잔금",
+      pct: 0,
+      amount: 0,
+      date: "",
+      status: "pending",
+      paymentMethod: "",
+      autoBalance: true
+    };
+    item.installments.push(balance);
+  }
+
+  item.installments.forEach((installment) => {
+    installment.autoBalance = installment === balance;
+  });
+
+  balance.title = "잔금";
+  balance.paymentMethod = balance.paymentMethod || "";
+
+  const otherTotal = item.installments
+    .filter((installment) => installment !== balance)
+    .reduce(
+      (sum, installment) => sum + Number(installment.amount || 0),
+      0
+    );
+
+  balance.amount = Math.max(0, Number(item.amount || 0) - otherTotal);
+  balance.pct = Number(item.amount || 0) > 0
+    ? Math.round(balance.amount / Number(item.amount) * 10000) / 100
+    : 0;
+
+  return before !== JSON.stringify(item.installments);
 }
 
 function paidAmt(item) {
@@ -2885,9 +3021,17 @@ function derivedStatus(item) {
     return item.status || "pending";
   }
 
-  const totalCount = item.installments.length;
+  const payableInstallments = item.installments.filter(
+    (installment) => Number(installment.amount || 0) > 0
+  );
 
-  const paidCount = item.installments.filter(
+  if (!payableInstallments.length) {
+    return "paid";
+  }
+
+  const totalCount = payableInstallments.length;
+
+  const paidCount = payableInstallments.filter(
     (installment) =>
       installment.status === "paid"
   ).length;
@@ -2901,7 +3045,7 @@ function derivedStatus(item) {
   }
 
   if (
-    item.installments.some(
+    payableInstallments.some(
       (installment) =>
         installment.status === "due"
     )
@@ -3636,6 +3780,11 @@ function renderCostTable() {
                   ${esc(item.name)}
                   <span style="color:#8b92a5">→</span>
                   ${esc(installment.title)}
+                  ${
+                    paymentMethodLabel(installment.paymentMethod)
+                      ? `<span style="color:#8b92a5;font-size:0.7rem"> · ${paymentMethodLabel(installment.paymentMethod)}</span>`
+                      : ""
+                  }
 
                   ${
                     installment.date
@@ -3684,6 +3833,9 @@ function renderCostTable() {
           const subText = [
             item.vendor
               ? `🏪 ${item.vendor}`
+              : "",
+            paymentMethodLabel(item.paymentMethod)
+              ? `💳 ${paymentMethodLabel(item.paymentMethod)}`
               : "",
             item.memo || ""
           ]
@@ -3762,7 +3914,7 @@ function collectPaymentEntries() {
       ) {
         item.installments.forEach(
           (installment) => {
-            if (!installment.date) {
+            if (!installment.date || Number(installment.amount || 0) <= 0) {
               return;
             }
 
@@ -3777,6 +3929,7 @@ function collectPaymentEntries() {
                 ),
               paid:
                 installment.status === "paid",
+              paymentMethod: installment.paymentMethod || "",
               type: "item",
               parentIndex: itemIndex
             });
@@ -3788,6 +3941,7 @@ function collectPaymentEntries() {
           name: item.name,
           amount: effectiveAmt(item),
           paid: item.status === "paid",
+          paymentMethod: item.paymentMethod || "",
           type: "item",
           parentIndex: itemIndex
         });
@@ -4013,6 +4167,7 @@ function renderPaymentCalendar() {
             <div class="calendar-detail-item">
               ${entry.paid ? "✓" : "•"}
               ${esc(entry.name)}
+              ${paymentMethodLabel(entry.paymentMethod) ? ` · ${paymentMethodLabel(entry.paymentMethod)}` : ""}
             </div>
           `
         )
@@ -4093,7 +4248,8 @@ function renderPaymentCalendar() {
             (entry) =>
               `${entry.name}\n` +
               `${fmtFull(entry.amount)} · ` +
-              `${entry.paid ? "완료" : "예정"}`
+              `${entry.paid ? "완료" : "예정"}` +
+              `${paymentMethodLabel(entry.paymentMethod) ? ` · ${paymentMethodLabel(entry.paymentMethod)}` : ""}`
           )
           .join("\n\n");
     }
@@ -4140,7 +4296,10 @@ function renderMonthlyPaymentList(allEntries) {
 
     const itemHtml = dateEntries.map((entry) => `
       <div class="monthly-payment-item">
-        <div class="monthly-payment-item-name">${entry.paid ? "✓" : "●"} ${esc(entry.name)}</div>
+        <div class="monthly-payment-item-name">
+          ${entry.paid ? "✓" : "●"} ${esc(entry.name)}
+          ${paymentMethodLabel(entry.paymentMethod) ? ` · ${paymentMethodLabel(entry.paymentMethod)}` : ""}
+        </div>
         <div class="monthly-payment-item-amount ${entry.paid ? "paid" : "due"}">
           ${entry.paid ? "완료" : "예정"} ${fmtFull(entry.amount)}
         </div>
@@ -4277,11 +4436,16 @@ function renderItems() {
     let installmentHtml = "";
 
     if (hasInstallments) {
+      const payableInstallments =
+        item.installments.filter(
+          (installment) => Number(installment.amount || 0) > 0
+        );
+
       const totalCount =
-        item.installments.length;
+        payableInstallments.length;
 
       const paidCount =
-        item.installments.filter(
+        payableInstallments.filter(
           (installment) =>
             installment.status === "paid"
         ).length;
@@ -4299,13 +4463,13 @@ function renderItems() {
           : 0;
 
       const nextInstallment =
-        item.installments.find(
+        payableInstallments.find(
           (installment) =>
             installment.status !== "paid"
         );
 
       const dots =
-        item.installments
+        payableInstallments
           .map(
             (installment) =>
               `<span class="inst-dot ${installment.status}"></span>`
@@ -4341,6 +4505,11 @@ function renderItems() {
                 다음:
                 ${esc(nextInstallment.title)}
                 ${fmtCompact(nextInstallment.amount)}
+                ${
+                  paymentMethodLabel(nextInstallment.paymentMethod)
+                    ? ` · ${paymentMethodLabel(nextInstallment.paymentMethod)}`
+                    : ""
+                }
 
                 ${
                   nextInstallment.date
@@ -4403,6 +4572,16 @@ function renderItems() {
           ? `
             <div class="item-memo">
               🏪 ${esc(item.vendor)}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        !hasInstallments && paymentMethodLabel(item.paymentMethod)
+          ? `
+            <div class="item-memo">
+              💳 ${paymentMethodLabel(item.paymentMethod)}
             </div>
           `
           : ""
@@ -4885,11 +5064,15 @@ function toggleInstSection() {
     checked
       ? "· 분할납부 기준 총액"
       : "";
+
+  if (checked) {
+    ensureAutoBalanceRow();
+  }
 }
 
 function onTotalAmtChange() {
   recalcInstallmentAmounts();
-  updateInstallmentTotal();
+  updateAutoBalanceRow();
 }
 
 function recalcInstallmentAmounts() {
@@ -4907,6 +5090,9 @@ function recalcInstallmentAmounts() {
   document
     .querySelectorAll(".inst-row")
     .forEach((row) => {
+      if (row.dataset.autoBalance === "true") {
+        return;
+      }
       const percentInput =
         row.querySelector(
           '[data-field="pct"]'
@@ -4960,7 +5146,7 @@ function onInstallmentPercent(element) {
       fmtWonInput(amount);
   }
 
-  updateInstallmentTotal();
+  updateAutoBalanceRow();
 }
 
 function onInstallmentAmount(element) {
@@ -4993,7 +5179,7 @@ function onInstallmentAmount(element) {
       ).toFixed(2);
   }
 
-  updateInstallmentTotal();
+  updateAutoBalanceRow();
 }
 
 function updateInstallmentTotal() {
@@ -5010,13 +5196,95 @@ function updateInstallmentTotal() {
   document.getElementById(
     "inst-total-label"
   ).textContent =
-    total > 0
-      ? `분할 합계: ${fmtFull(total)}`
-      : "";
+    `분할 합계: ${fmtFull(total)} · 총액: ${fmtFull(
+      parseWon(document.getElementById("item-amount").value)
+    )}`;
+}
+
+function ensureAutoBalanceRow() {
+  const rows = Array.from(document.querySelectorAll(".inst-row"));
+  let balanceRow = rows.find((row) => row.dataset.autoBalance === "true");
+
+  if (!balanceRow) {
+    const legacyBalance = [...rows].reverse().find(
+      (row) =>
+        row.querySelector('[data-field="title"]').value.trim() === "잔금"
+    );
+
+    if (legacyBalance) {
+      legacyBalance.remove();
+      addInstRow(getInstallmentFromRow(legacyBalance), true);
+    } else {
+      addInstRow(
+        {
+          title: "잔금",
+          pct: 0,
+          amount: 0,
+          date: "",
+          status: "pending",
+          paymentMethod: "",
+          autoBalance: true
+        },
+        true
+      );
+    }
+  }
+
+  updateAutoBalanceRow();
+}
+
+function updateAutoBalanceRow() {
+  const totalAmount = parseWon(
+    document.getElementById("item-amount").value
+  );
+  const rows = Array.from(document.querySelectorAll(".inst-row"));
+  const balanceRow = rows.find((row) => row.dataset.autoBalance === "true");
+
+  if (!balanceRow) {
+    updateInstallmentTotal();
+    return;
+  }
+
+  const otherTotal = rows
+    .filter((row) => row !== balanceRow)
+    .reduce(
+      (sum, row) =>
+        sum + parseWon(row.querySelector('[data-field="amount"]').value),
+      0
+    );
+  const residual = totalAmount - otherTotal;
+
+  balanceRow.querySelector('[data-field="amount"]').value =
+    fmtWonInput(Math.max(0, residual));
+  balanceRow.querySelector('[data-field="pct"]').value =
+    totalAmount > 0
+      ? (Math.max(0, residual) / totalAmount * 100).toFixed(2)
+      : "0";
+  balanceRow.classList.toggle("inst-negative", residual < 0);
+
+  document.getElementById("inst-total-label").textContent =
+    residual < 0
+      ? `입력 금액이 총액을 ${fmtFull(Math.abs(residual))} 초과했습니다.`
+      : `잔금: ${fmtFull(residual)} · 분할 합계: ${fmtFull(totalAmount)}`;
+  document.getElementById("inst-total-label").style.color =
+    residual < 0 ? "#ef4444" : "#6366f1";
+}
+
+function getInstallmentFromRow(row) {
+  return {
+    title: row.querySelector('[data-field="title"]').value.trim(),
+    pct: Number(row.querySelector('[data-field="pct"]').value || 0),
+    amount: parseWon(row.querySelector('[data-field="amount"]').value),
+    date: row.querySelector('[data-field="date"]').value,
+    status: row.querySelector('[data-field="status"]').value,
+    paymentMethod: row.querySelector('[data-field="paymentMethod"]').value,
+    autoBalance: row.dataset.autoBalance === "true"
+  };
 }
 
 function addInstRow(
-  installment = null
+  installment = null,
+  forceAutoBalance = false
 ) {
   const current =
     installment || {
@@ -5024,33 +5292,40 @@ function addInstRow(
       pct: "",
       amount: "",
       date: "",
-      status: "pending"
+      status: "pending",
+      paymentMethod: "",
+      autoBalance: false
     };
+  const isAutoBalance = forceAutoBalance || current.autoBalance === true;
 
   const row =
     document.createElement("div");
 
-  row.className = "inst-row";
+  row.className = `inst-row${isAutoBalance ? " auto-balance" : ""}`;
+  row.dataset.autoBalance = isAutoBalance ? "true" : "false";
 
   row.innerHTML = `
     <div class="inst-row-top">
       <input
         class="form-input"
         placeholder="제목 · 계약금, 중도금 1차 등"
-        value="${esc(current.title)}"
+        value="${esc(isAutoBalance ? "잔금" : current.title)}"
         data-field="title"
+        ${isAutoBalance ? "readonly" : ""}
       >
 
-      <button
-        type="button"
-        class="inst-del-btn"
-        onclick="
-          this.closest('.inst-row').remove();
-          updateInstallmentTotal();
-        "
-      >
-        ×
-      </button>
+      ${
+        isAutoBalance
+          ? '<span class="inst-auto-note">자동 계산</span>'
+          : `<button
+              type="button"
+              class="inst-del-btn"
+              onclick="
+                this.closest('.inst-row').remove();
+                updateAutoBalanceRow();
+              "
+            >×</button>`
+      }
     </div>
 
     <div class="inst-row-bottom">
@@ -5067,6 +5342,7 @@ function addInstRow(
           value="${current.pct || ""}"
           data-field="pct"
           oninput="onInstallmentPercent(this)"
+          ${isAutoBalance ? "readonly" : ""}
         >
       </div>
 
@@ -5082,6 +5358,7 @@ function addInstRow(
           value="${fmtWonInput(current.amount)}"
           data-field="amount"
           oninput="onInstallmentAmount(this)"
+          ${isAutoBalance ? "readonly" : ""}
         >
       </div>
 
@@ -5142,14 +5419,36 @@ function addInstRow(
         </select>
       </div>
 
+      <div class="inst-field inst-field-method">
+        <span class="inst-row-label">납부 방법</span>
+        <select class="form-input" data-field="paymentMethod">
+          <option value="" ${!current.paymentMethod ? "selected" : ""}>선택 안 함</option>
+          <option value="card" ${current.paymentMethod === "card" ? "selected" : ""}>카드</option>
+          <option value="cash" ${current.paymentMethod === "cash" ? "selected" : ""}>현금</option>
+          <option value="transfer" ${current.paymentMethod === "transfer" ? "selected" : ""}>계좌이체</option>
+          <option value="other" ${current.paymentMethod === "other" ? "selected" : ""}>기타</option>
+        </select>
+      </div>
+
     </div>
   `;
 
-  document.getElementById(
-    "inst-rows"
-  ).appendChild(row);
+  const rowsContainer = document.getElementById("inst-rows");
+  const existingBalance = rowsContainer.querySelector(
+    '.inst-row[data-auto-balance="true"]'
+  );
 
-  updateInstallmentTotal();
+  if (!isAutoBalance && existingBalance) {
+    rowsContainer.insertBefore(row, existingBalance);
+  } else {
+    rowsContainer.appendChild(row);
+  }
+
+  if (!isAutoBalance) {
+    updateAutoBalanceRow();
+  } else {
+    updateInstallmentTotal();
+  }
 }
 
 function getInstallments() {
@@ -5158,39 +5457,7 @@ function getInstallments() {
       ".inst-row"
     )
   )
-    .map((row) => ({
-      title:
-        row
-          .querySelector(
-            '[data-field="title"]'
-          )
-          .value
-          .trim(),
-
-      pct:
-        Number(
-          row.querySelector(
-            '[data-field="pct"]'
-          ).value || 0
-        ),
-
-      amount:
-        parseWon(
-          row.querySelector(
-            '[data-field="amount"]'
-          ).value
-        ),
-
-      date:
-        row.querySelector(
-          '[data-field="date"]'
-        ).value,
-
-      status:
-        row.querySelector(
-          '[data-field="status"]'
-        ).value
-    }))
+    .map((row) => getInstallmentFromRow(row))
     .filter(
       (installment) =>
         installment.title
@@ -5240,6 +5507,10 @@ function openItemModal(index) {
     ).value = "pending";
 
     document.getElementById(
+      "item-payment-method"
+    ).value = "";
+
+    document.getElementById(
       "item-vendor"
     ).value = "";
 
@@ -5278,6 +5549,11 @@ function openItemModal(index) {
       item.status || "pending";
 
     document.getElementById(
+      "item-payment-method"
+    ).value =
+      item.paymentMethod || "";
+
+    document.getElementById(
       "item-vendor"
     ).value =
       item.vendor || "";
@@ -5297,15 +5573,20 @@ function openItemModal(index) {
       Boolean(hasInstallments);
 
     if (hasInstallments) {
-      item.installments.forEach(
-        (installment) =>
-          addInstRow(installment)
+      const normalizedItem = JSON.parse(JSON.stringify(item));
+      normalizeAutoBalanceInstallment(normalizedItem);
+      normalizedItem.installments
+        .filter((installment) => !installment.autoBalance)
+        .forEach((installment) => addInstRow(installment));
+      const balance = normalizedItem.installments.find(
+        (installment) => installment.autoBalance
       );
+      addInstRow(balance, true);
     }
   }
 
   toggleInstSection();
-  updateInstallmentTotal();
+  updateAutoBalanceRow();
   openModal("item-modal");
 }
 
@@ -5354,6 +5635,11 @@ function saveItem() {
         "item-memo"
       ).value.trim(),
 
+    paymentMethod:
+      document.getElementById(
+        "item-payment-method"
+      ).value,
+
     dueDate: "",
     status: "pending",
     installments: null
@@ -5370,8 +5656,21 @@ function saveItem() {
       return;
     }
 
+    const otherTotal = installments
+      .filter((installment) => !installment.autoBalance)
+      .reduce(
+        (sum, installment) => sum + Number(installment.amount || 0),
+        0
+      );
+
+    if (otherTotal > item.amount) {
+      alert("분할 납부 금액 합계가 전체 금액을 초과할 수 없습니다.");
+      return;
+    }
+
     item.installments =
       installments;
+    normalizeAutoBalanceInstallment(item);
 
     item.status =
       derivedStatus(item);
