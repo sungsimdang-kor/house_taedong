@@ -1427,16 +1427,20 @@ header h1 {
 
     <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#6366f1"></div>
-      <div class="card-title">총 비용 · 분양가 제외</div>
+      <div class="card-title">총 비용 · 분양가·옵션 제외</div>
       <div class="card-value" id="kpi-total">-</div>
-      <div class="card-sub">옵션·세금·가전·가구·인테리어 등</div>
+      <div class="card-sub">분양가·옵션을 제외한 모든 비용</div>
       <div class="card-link-hint">↓ 비용 상세</div>
     </div>
 
     <div class="card card-kpi" onclick="scrollToSection('section-cost')">
       <div class="card-accent" style="background:#22c55e"></div>
-      <div class="card-title">납부 / 구매 완료 · 분양가 제외</div>
+      <div class="card-title">납부 / 구매 완료 · 분양가·옵션 제외</div>
       <div class="card-value" id="kpi-paid">-</div>
+
+      <div class="card-sub" id="kpi-paid-detail">
+        분양가·옵션 제외 · 남은 금액 -
+      </div>
 
       <div class="progress-wrap">
         <div class="progress-label">
@@ -1458,9 +1462,11 @@ header h1 {
 
     <div class="card card-kpi" onclick="scrollToSection('section-items')">
       <div class="card-accent" style="background:#f97316"></div>
-      <div class="card-title">잔여 납부 / 구매액 · 분양가 제외</div>
+      <div class="card-title">실제 잔여 필요금액</div>
       <div class="card-value" id="kpi-remain">-</div>
-      <div class="card-sub">완료되지 않은 비용 합계</div>
+      <div class="card-sub" id="kpi-remain-detail">
+        대출 이자를 제외한 전체 미납 비용에서 남은 대출 원금을 차감
+      </div>
       <div class="card-link-hint">↓ 항목 리스트</div>
     </div>
 
@@ -2901,6 +2907,16 @@ function paymentMethodLabel(value) {
   }[value] || "";
 }
 
+function isLoanInterestItem(item) {
+  const searchableText = [
+    item.name,
+    item.category,
+    item.memo
+  ].filter(Boolean).join(" ");
+
+  return /(?:대출.*이자|이자.*대출|후불이자)/.test(searchableText);
+}
+
 function normalizeAutoBalanceInstallment(item) {
   if (!Array.isArray(item.installments) || !item.installments.length) {
     return false;
@@ -3548,18 +3564,23 @@ function currentMonthlyPayment(loan) {
 function renderKPI() {
   const allItems = data.items || [];
 
-  const expenseItems = allItems.filter(
+  const purchaseItems = allItems.filter(
     (item) =>
-      item.category !== "분양가"
+      !isLoanInterestItem(item)
   );
 
-  const totalExpense = expenseItems.reduce(
+  const nonPropertyOptionItems = allItems.filter(
+    (item) =>
+      !["분양가", "옵션"].includes(item.category)
+  );
+
+  const totalExpense = nonPropertyOptionItems.reduce(
     (sum, item) =>
       sum + effectiveAmt(item),
     0
   );
 
-  const paidExpense = expenseItems.reduce(
+  const paidExpense = nonPropertyOptionItems.reduce(
     (sum, item) =>
       sum + paidAmt(item),
     0
@@ -3570,13 +3591,41 @@ function renderKPI() {
     totalExpense - paidExpense
   );
 
-  const dueExpense = expenseItems.reduce(
+  const totalUnpaidPurchaseCost = purchaseItems.reduce(
+    (sum, item) =>
+      sum + Math.max(
+        0,
+        effectiveAmt(item) - paidAmt(item)
+      ),
+    0
+  );
+
+  const availableLoanPrincipal = (data.loans || []).reduce(
+    (sum, loan) =>
+      sum + Math.max(
+        0,
+        Number(loanProgress(loan).remainingPrincipal || 0)
+      ),
+    0
+  );
+
+  const actualRemainingRequirement = Math.max(
+    0,
+    totalUnpaidPurchaseCost - availableLoanPrincipal
+  );
+
+  const scheduledItems = allItems.filter(
+    (item) =>
+      item.category !== "분양가"
+  );
+
+  const dueExpense = scheduledItems.reduce(
     (sum, item) =>
       sum + dueAmt(item),
     0
   );
 
-  const dueCount = expenseItems.filter(
+  const dueCount = scheduledItems.filter(
     (item) => {
       const status = derivedStatus(item);
 
@@ -3591,7 +3640,7 @@ function renderKPI() {
   ).length;
 
   const incompleteCount =
-    expenseItems.filter(
+    scheduledItems.filter(
       (item) =>
         derivedStatus(item) !== "paid"
     ).length;
@@ -3615,7 +3664,21 @@ function renderKPI() {
 
   document.getElementById(
     "kpi-remain"
-  ).textContent = fmtFull(remainingExpense);
+  ).textContent = fmtFull(actualRemainingRequirement);
+
+  document.getElementById(
+    "kpi-paid-detail"
+  ).textContent =
+    "분양가·옵션 제외 · 남은 금액 " +
+    fmtFull(remainingExpense);
+
+  document.getElementById(
+    "kpi-remain-detail"
+  ).textContent =
+    "전체 미납(대출 이자 제외) " +
+    fmtFull(totalUnpaidPurchaseCost) +
+    " − 남은 대출 원금 " +
+    fmtFull(availableLoanPrincipal);
 
   document.getElementById(
     "kpi-paid-pct"
